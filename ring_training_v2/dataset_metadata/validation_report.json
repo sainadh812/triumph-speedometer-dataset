@@ -1,0 +1,148 @@
+{
+  "schema_version": "arc_needle_augmented_v2",
+  "count": 700,
+  "split_counts": {
+    "train": 500,
+    "validation": 100,
+    "test": 100
+  },
+  "pose_groups": 350,
+  "pose_group_leakage": false,
+  "review_only": false,
+  "labels_sha256": "76cb9e093b1d7907f340a8e471a6132ba060dfec52550b18e244c1ed31aead6f",
+  "image_files_verified": 700,
+  "mask_files_verified": 2100,
+  "all_image_hashes_verified": true,
+  "all_mask_hashes_verified": true,
+  "mask_semantics_verified": true,
+  "tick_visibility_verified": true,
+  "occluded_samples": {
+    "train": 200,
+    "validation": 40,
+    "test": 40
+  },
+  "clean_light_samples": {
+    "train": 125,
+    "validation": 25,
+    "test": 25
+  },
+  "visibility_counts": {
+    "train": {
+      "tick_0_hidden": 54,
+      "tick_40_visible": 446,
+      "tick_80_visible": 446,
+      "tick_120_visible": 446,
+      "tick_160_visible": 444,
+      "tick_180_visible": 446,
+      "tick_0_visible": 446,
+      "tick_120_hidden": 54,
+      "tick_180_hidden": 54,
+      "tick_80_hidden": 54,
+      "tick_160_hidden": 56,
+      "tick_40_hidden": 54
+    },
+    "validation": {
+      "tick_0_hidden": 12,
+      "tick_40_visible": 90,
+      "tick_80_visible": 90,
+      "tick_120_hidden": 12,
+      "tick_160_visible": 90,
+      "tick_180_visible": 88,
+      "tick_120_visible": 88,
+      "tick_160_hidden": 10,
+      "tick_180_hidden": 12,
+      "tick_0_visible": 88,
+      "tick_40_hidden": 10,
+      "tick_80_hidden": 10
+    },
+    "test": {
+      "tick_0_hidden": 12,
+      "tick_40_visible": 90,
+      "tick_80_visible": 88,
+      "tick_120_visible": 88,
+      "tick_160_visible": 90,
+      "tick_180_visible": 88,
+      "tick_0_visible": 88,
+      "tick_40_hidden": 10,
+      "tick_180_hidden": 12,
+      "tick_80_hidden": 12,
+      "tick_160_hidden": 10,
+      "tick_120_hidden": 12
+    }
+  },
+  "max_needle_projection_error_px": 1.7053025658242404e-13,
+  "source_master_sha256": "c1d0e8a1e204626518853005f5c58bc91113d3bdf8a82477c75787eee26b0f7b",
+  "mirrors_enabled": false,
+  "scope": "Single-master synthetic holdouts by camera/needle/occlusion family; not independent real-camera accuracy",
+  "patch_target_counts_per_family": {
+    "train": {
+      "tick_0": 25,
+      "tick_40": 25,
+      "tick_80": 25,
+      "tick_120": 25,
+      "tick_160": 25,
+      "tick_180": 25
+    },
+    "validation": {
+      "tick_0": 5,
+      "tick_40": 5,
+      "tick_80": 5,
+      "tick_120": 5,
+      "tick_160": 5,
+      "tick_180": 5
+    },
+    "test": {
+      "tick_0": 5,
+      "tick_40": 5,
+      "tick_80": 5,
+      "tick_120": 5,
+      "tick_160": 5,
+      "tick_180": 5
+    }
+  },
+  "rendering_seconds": 165.30847835540771,
+  "photometric_profiles": {
+    "train": {
+      "clean": 73,
+      "motion_noise": 52,
+      "compression": 50,
+      "reflection_noise": 39,
+      "light": 52,
+      "soft_focus": 43,
+      "dim_noise": 57,
+      "shadow_noise": 45,
+      "bright_soft": 47,
+      "mixed": 42
+    },
+    "validation": {
+      "clean": 14,
+      "reflection_noise": 11,
+      "motion_noise": 10,
+      "bright_soft": 12,
+      "soft_focus": 9,
+      "light": 11,
+      "compression": 10,
+      "mixed": 7,
+      "dim_noise": 6,
+      "shadow_noise": 10
+    },
+    "test": {
+      "soft_focus": 10,
+      "bright_soft": 9,
+      "compression": 13,
+      "shadow_noise": 10,
+      "reflection_noise": 9,
+      "dim_noise": 8,
+      "clean": 10,
+      "light": 15,
+      "motion_noise": 10,
+      "mixed": 6
+    }
+  },
+  "visible_tick_count_histogram": {
+    "5": 154,
+    "4": 144,
+    "6": 396,
+    "3": 6
+  }
+}

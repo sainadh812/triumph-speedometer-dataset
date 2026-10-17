@@ -10,3 +10,8 @@ ring_training/checks/
 ring_training/runs/
 ring_training/ring_notebook_work/
 !ring_training/arc_needle_review20.zip
+
+ring_training_v2/checks/
+ring_training_v2/dataset_v2/
+ring_training_v2/runs/
+!ring_training_v2/arc_needle_augmented700.zip

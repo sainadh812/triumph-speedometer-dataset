@@ -2,6 +2,18 @@
 
 Grayscale dashboard images with speed and needle-position labels for a Triumph Scrambler 400 XC speedometer reader. Version 2 adds clockwise and counterclockwise camera rotations over the full circle, including sideways and upside-down views. Generation uses OpenCV locally, with no per-image AI generation cost.
 
+## Augmented arc and tick experiment
+
+The new [augmented training notebook](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/ring_training_v2/Speedometer_Arc_Ticks_Augmented_Colab.ipynb) uses **500 training, 100 validation and 100 test images at 512×512**. The [69 MB archive](ring_training_v2/arc_needle_augmented700.zip) is downloaded automatically and verified. [Setup, metrics and restart notes](ring_training_v2/README.txt) explain the full workflow.
+
+The dataset adds translation, mild shear, perspective, continuous full-circle rotation, blur, lighting/noise and controlled tick occlusion. Related appearance variants stay in the same split. Mirrors are disabled. A dedicated multiscale tick decoder learns named references; a separate frozen needle branch preserves the earlier needle reader. All labels and masks follow the image transform.
+
+Training starts from the owner's private arc epoch33 and needle epoch19 weights in a separate experiment; others can select `fresh`. Every epoch saves complete state to Drive, with latest/best/fresh modes. The 40-epoch schedule selects checkpoints using validation only. Final synthetic test evaluation is opt-in after model decisions are finished. This is a shared-source synthetic holdout and cannot establish real-camera accuracy.
+
+[Dataset checks and provenance](ring_training_v2/dataset_manifest.json) · [Validation report](ring_training_v2/dataset_metadata/validation_report.json) · [Reproducible generator](ring_training_v2/generate_dataset.py)
+
+![Augmented images and transformed labels](ring_training_v2/dataset_metadata/qa/contact_sheet_labels.png)
+
 ## Download and train
 
 - [Arc + needle learning-check notebook](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/ring_training/Speedometer_Arc_Needle_Colab.ipynb) — new development pilot described below

@@ -1,0 +1,3094 @@
+{
+  "schema_version": "1.0",
+  "purpose": "20-image human review pilot; not a test set",
+  "source": {
+    "file": "source/approved_imagegen_master.png",
+    "sha256": "c1d0e8a1e204626518853005f5c58bc91113d3bdf8a82477c75787eee26b0f7b",
+    "clean_plate_sha256": "201809db982ed6f6eeacb1054bc1ae16b2341184cf80f7e9a8be3ee1e833bbc7",
+    "needle_layer_sha256": "0813bd737097c79fdf80cf4df17db4ea5b44011da427883d11c5fdfa177e4da3",
+    "origin": "user-approved ImageGen grayscale master"
+  },
+  "coordinate_convention": "x right, y down, zero-based pixel centers; normalized by width-1 and height-1",
+  "count": 20,
+  "master_seed": 20261017,
+  "samples": [
+    {
+      "id": 1,
+      "image": "images/01_speed_000.png",
+      "image_sha256": "173b8bf5b7de28c348a37c98ac609417bab557e99915cbcb736373bb33886d0d",
+      "speed_kmh": 0,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          245.61400191774487,
+          268.8890530241965
+        ],
+        "tip": [
+          254.71284379996,
+          415.2257901749695
+        ],
+        "tick_anchor": [
+          253.96072850999835,
+          403.12951474575016
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.48065362410517587,
+          0.5262016693232808
+        ],
+        "tip": [
+          0.49845957690794523,
+          0.8125749318492554
+        ],
+        "tick_anchor": [
+          0.4969877270254371,
+          0.7889031599721138
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 86.44207611556759,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/01_speed_000.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        606.9,
+        1007.1147711617156
+      ],
+      "source_tick_anchor_xy": [
+        606.0,
+        978.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.35382791087012544,
+          0.889689553423944,
+          -197.1855097615786
+        ],
+        [
+          -0.889689553423944,
+          0.35382791087012544,
+          953.1762491640885
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4095210825833549,
+          0.01221892612046105,
+          -6.971197138781745
+        ],
+        [
+          -0.015146273204298203,
+          0.4131867899436719,
+          6.922468439777965
+        ],
+        [
+          3.7738803925963826e-07,
+          -3.4354130656312704e-06,
+          0.9999336351409172
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2483394994842267,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20268936,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 1.9933779481349996,
+          "scale": 0.9852239240510575,
+          "translation_px": [
+            3.2944159520578715,
+            0.9950919408822223
+          ],
+          "corner_jitter_px": [
+            [
+              1.3682774305343628,
+              -0.4281843304634094
+            ],
+            [
+              -2.050161600112915,
+              -1.3755985498428345
+            ],
+            [
+              -2.397522449493408,
+              2.0620250701904297
+            ],
+            [
+              -1.156488060951233,
+              3.1784465312957764
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "soft_focus",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.7482782945735929,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 0.0,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/01_speed_000.png",
+      "label_overlay": "diagnostics/overlays/01_speed_000.png"
+    },
+    {
+      "id": 2,
+      "image": "images/02_speed_010.png",
+      "image_sha256": "1626025674aa9baa1b787d00cefb4b1ac499d2bdfe89a0eee42534e7b8944a50",
+      "speed_kmh": 10,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          244.80794526827955,
+          265.73025681294587
+        ],
+        "tip": [
+          227.8034040147972,
+          410.36309522972675
+        ],
+        "tick_anchor": [
+          229.2070968952767,
+          398.4239265957241
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.47907621383224963,
+          0.52002007204099
+        ],
+        "tip": [
+          0.445799225077881,
+          0.8030588947744164
+        ],
+        "tick_anchor": [
+          0.4485461778772538,
+          0.779694572594372
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 96.7055047339558,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/02_speed_010.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        541.5,
+        1004.9347711617156
+      ],
+      "source_tick_anchor_xy": [
+        546.0,
+        976.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.5143016677445659,
+          0.8136030471210915,
+          -243.02905702235512
+        ],
+        [
+          -0.8136030471210915,
+          0.5143016677445659,
+          802.7982095050536
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4122886466386809,
+          0.01564377980370995,
+          -10.499860141987366
+        ],
+        [
+          -0.013024434543563201,
+          0.41212664888231215,
+          4.465991296615295
+        ],
+        [
+          3.1963874890879477e-06,
+          1.278772022469368e-06,
+          0.9999340571702959
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2321077866292434,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20276855,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 1.7811266860459263,
+          "scale": 0.9860078432488052,
+          "translation_px": [
+            1.074135853179091,
+            -1.1509242530687382
+          ],
+          "corner_jitter_px": [
+            [
+              -0.665105402469635,
+              0.4821566641330719
+            ],
+            [
+              -2.7971572875976562,
+              0.22292426228523254
+            ],
+            [
+              -0.059827882796525955,
+              -2.950565814971924
+            ],
+            [
+              2.824913740158081,
+              -0.6605885624885559
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "soft_focus",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.5921047046567574,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 0.0,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/02_speed_010.png",
+      "label_overlay": "diagnostics/overlays/02_speed_010.png"
+    },
+    {
+      "id": 3,
+      "image": "images/03_speed_020.png",
+      "image_sha256": "98c5843c27829e76e5a4636af0a9ad722914d34d5bbbaa6f0ae5a348973f18a2",
+      "speed_kmh": 20,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          242.92593523635162,
+          269.4753812402117
+        ],
+        "tip": [
+          184.99559789377787,
+          404.38487793243735
+        ],
+        "tick_anchor": [
+          189.7662203583818,
+          393.27494304974607
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4753932196406098,
+          0.5273490826618624
+        ],
+        "tip": [
+          0.36202661035964356,
+          0.7913598393981162
+        ],
+        "tick_anchor": [
+          0.3713624664547589,
+          0.769618283854689
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 113.23875704786498,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/03_speed_020.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        469.56,
+        985.3147711617155
+      ],
+      "source_tick_anchor_xy": [
+        480.0,
+        958.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.6722159642193604,
+          0.6870295730081142,
+          -254.30331708264816
+        ],
+        [
+          -0.6870295730081142,
+          0.6722159642193604,
+          624.0051103705583
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4178716977623081,
+          -0.014793376607599724,
+          4.963807218094931
+        ],
+        [
+          0.01704973327863971,
+          0.42023579690736823,
+          -14.170773633647837
+        ],
+        [
+          4.170813802241045e-07,
+          8.923639697888406e-06,
+          0.9997031801801932
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2438888496100982,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20284774,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": -2.0002904485579425,
+          "scale": 0.9953641946357802,
+          "translation_px": [
+            0.4893170916691485,
+            0.5387435419438065
+          ],
+          "corner_jitter_px": [
+            [
+              0.6640188097953796,
+              -0.16923323273658752
+            ],
+            [
+              2.5163352489471436,
+              2.739128828048706
+            ],
+            [
+              -3.29000186920166,
+              1.9658228158950806
+            ],
+            [
+              0.4156804084777832,
+              -0.8458031415939331
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "dim_noise",
+          "gain": 0.8207522713807229,
+          "gamma": 1.085961173845871,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 2.868536486219817,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/03_speed_020.png",
+      "label_overlay": "diagnostics/overlays/03_speed_020.png"
+    },
+    {
+      "id": 4,
+      "image": "images/04_speed_030.png",
+      "image_sha256": "93512afdc95611db253c1086f220da2099f2077577bbfc73b04eede1ceaa4b2d",
+      "speed_kmh": 30,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          239.69849725783885,
+          266.2962885091077
+        ],
+        "tip": [
+          154.75402824901792,
+          387.73821838761944
+        ],
+        "tick_anchor": [
+          161.76262953555542,
+          377.7182832945206
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4690772940466514,
+          0.5211277661626373
+        ],
+        "tip": [
+          0.30284545645600375,
+          0.7587832062380028
+        ],
+        "tick_anchor": [
+          0.31656091885627285,
+          0.7391747226898642
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 124.97147074369406,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/04_speed_030.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        403.07,
+        954.7947711617155
+      ],
+      "source_tick_anchor_xy": [
+        419.0,
+        930.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.8047846944428833,
+          0.5392061627329258,
+          -236.5634824079168
+        ],
+        [
+          -0.5392061627329258,
+          0.8047846944428833,
+          449.1357868396858
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.412221681399398,
+          -0.015794391660344707,
+          2.805017120869322
+        ],
+        [
+          0.016231928544790605,
+          0.4132612720648056,
+          -15.57696321346414
+        ],
+        [
+          -8.089362474801913e-06,
+          -2.540919385091969e-06,
+          1.0000310766156475
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2506849678859977,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20292693,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": -2.272490977487087,
+          "scale": 0.9939891849561822,
+          "translation_px": [
+            -1.6260778445955912,
+            0.14155158493581776
+          ],
+          "corner_jitter_px": [
+            [
+              -0.9357530474662781,
+              -0.5553593039512634
+            ],
+            [
+              -0.18969663977622986,
+              -0.7686434388160706
+            ],
+            [
+              2.330381155014038,
+              3.1206984519958496
+            ],
+            [
+              -0.24446026980876923,
+              -1.731670618057251
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "compression",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 0.0,
+          "jpeg_quality": 77
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/04_speed_030.png",
+      "label_overlay": "diagnostics/overlays/04_speed_030.png"
+    },
+    {
+      "id": 5,
+      "image": "images/05_speed_040.png",
+      "image_sha256": "bebeca26e5ed21a78aa9ede13b265e0545cd33f3c04c5a5434dea70a3af6c1f0",
+      "speed_kmh": 40,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          244.26703467009142,
+          264.29958432024006
+        ],
+        "tip": [
+          134.2086088417701,
+          371.74598364250596
+        ],
+        "tick_anchor": [
+          143.3046914851192,
+          362.86577914557654
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4780176803719989,
+          0.5172203215660275
+        ],
+        "tip": [
+          0.26263915624612544,
+          0.7274872478326927
+        ],
+        "tick_anchor": [
+          0.28043970936422546,
+          0.7101091568406586
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 135.6880348556095,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/05_speed_040.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        342.03,
+        910.1047711617156
+      ],
+      "source_tick_anchor_xy": [
+        363.0,
+        889.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.9084749148542945,
+          0.3619913636664428,
+          -182.3753171893203
+        ],
+        [
+          -0.3619913636664428,
+          0.9084749148542945,
+          275.65025368910267
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.41927835152482607,
+          -0.012224246564481407,
+          1.0712209462840256
+        ],
+        [
+          0.0035963256156277606,
+          0.42018389764534225,
+          -14.269136767069746
+        ],
+        [
+          -2.3662191108133955e-06,
+          -6.40322597551837e-06,
+          1.0002516526314793
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2760392523943331,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20300612,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": -0.9008468832381138,
+          "scale": 1.0101716837470525,
+          "translation_px": [
+            2.6329403930781368,
+            -2.1354534749123886
+          ],
+          "corner_jitter_px": [
+            [
+              3.3762319087982178,
+              1.2475666999816895
+            ],
+            [
+              0.7310494184494019,
+              -2.397552490234375
+            ],
+            [
+              -2.1218173503875732,
+              -0.13168610632419586
+            ],
+            [
+              -3.456653118133545,
+              2.1256773471832275
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "reflection_noise",
+          "gain": 0.9080362498291458,
+          "gamma": 1.0661744326059392,
+          "shadow": null,
+          "reflection": {
+            "angle_radians": -2.4239876751570213,
+            "offset_px": -78.45008496248596,
+            "width_px": 36.81310396171367,
+            "strength": 0.12945946581970685
+          },
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 4.28405112555501,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/05_speed_040.png",
+      "label_overlay": "diagnostics/overlays/05_speed_040.png"
+    },
+    {
+      "id": 6,
+      "image": "images/06_speed_050.png",
+      "image_sha256": "b5a4d03ba7b0520e3ee02f5d150967a5b38d3fb1d7d52a0b9bc2f6748386ccd2",
+      "speed_kmh": 50,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          239.689081540095,
+          265.3779419299656
+        ],
+        "tip": [
+          113.03437407326909,
+          356.01003947758426
+        ],
+        "tick_anchor": [
+          123.51865035928554,
+          348.5076578442816
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.46905886798453034,
+          0.519330610430461
+        ],
+        "tip": [
+          0.22120229759935242,
+          0.6966928365510455
+        ],
+        "tick_anchor": [
+          0.24171947232736898,
+          0.6820110721023123
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 144.4130920640226,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/06_speed_050.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        291.89,
+        858.8747711617156
+      ],
+      "source_tick_anchor_xy": [
+        317.0,
+        842.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.9779610727137481,
+          0.1802701378779258,
+          -104.85206294193074
+        ],
+        [
+          -0.1802701378779258,
+          0.9779610727137481,
+          121.86553612132127
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.426324520388639,
+          0.010562384965649036,
+          -20.323850153774746
+        ],
+        [
+          -0.009163003395844742,
+          0.4268341656881764,
+          -7.429304410200761
+        ],
+        [
+          8.55507684470718e-06,
+          -8.308107485403574e-07,
+          0.9995735833855852
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2797440296129143,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20308531,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 1.6649847249235306,
+          "scale": 1.0155157905140038,
+          "translation_px": [
+            -3.6562080108443746,
+            -3.3425205431584066
+          ],
+          "corner_jitter_px": [
+            [
+              1.7688829898834229,
+              -0.9748519062995911
+            ],
+            [
+              -1.7111448049545288,
+              2.8943071365356445
+            ],
+            [
+              -3.23596453666687,
+              0.647181510925293
+            ],
+            [
+              -0.4308769106864929,
+              1.9958922863006592
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "bright",
+          "gain": 1.1430278543494337,
+          "gamma": 0.8919950384661443,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 0.0,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/06_speed_050.png",
+      "label_overlay": "diagnostics/overlays/06_speed_050.png"
+    },
+    {
+      "id": 7,
+      "image": "images/07_speed_060.png",
+      "image_sha256": "22f660fb7d03dc1913c258d89635b1038d528137bdfd1ff80398a812f61c6aa9",
+      "speed_kmh": 60,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          243.3887032239991,
+          262.1943783246091
+        ],
+        "tip": [
+          98.74439639010895,
+          316.32328955147216
+        ],
+        "tick_anchor": [
+          110.66565941649154,
+          311.86210471681295
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.47629883214089846,
+          0.513100544666554
+        ],
+        "tip": [
+          0.19323756632115255,
+          0.6190279638972058
+        ],
+        "tick_anchor": [
+          0.21656684817317326,
+          0.6102976608939588
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 159.48310446778322,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/07_speed_060.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        253.33417011,
+        796.5534282017156
+      ],
+      "source_tick_anchor_xy": [
+        281.627679,
+        784.824456
+      ],
+      "needle_transform_source_3x3": [
+        [
+          1.0066224413103861,
+          -0.016549994364401174,
+          6.885038371313954
+        ],
+        [
+          0.016549994364401174,
+          1.0066224413103861,
+          -14.198201317365374
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4150035996967156,
+          -0.014342283145106128,
+          5.092929950352166
+        ],
+        [
+          0.013513671886689133,
+          0.41755980549926347,
+          -19.52073682027025
+        ],
+        [
+          -4.801153390894077e-06,
+          2.459410309053571e-06,
+          0.9998520253324583
+        ]
+      ],
+      "anchor_method": "inferred_neighbor_ticks",
+      "estimated_anchor_uncertainty_source_px": 6,
+      "estimated_anchor_uncertainty_output_px": 2.5012548441611386,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20316450,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": -1.8044765757379282,
+          "scale": 0.9947095615264457,
+          "translation_px": [
+            1.8988055230786927,
+            -2.8855919869967055
+          ],
+          "corner_jitter_px": [
+            [
+              0.12407305091619492,
+              -3.189145803451538
+            ],
+            [
+              1.9102685451507568,
+              -2.765653133392334
+            ],
+            [
+              -1.107183575630188,
+              0.684909999370575
+            ],
+            [
+              -1.427345871925354,
+              -2.8079440593719482
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "motion_noise",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 5,
+          "motion_angle_degrees": 77.32347136991163,
+          "noise_std_255": 4.824689853131549,
+          "jpeg_quality": null,
+          "motion_kernel": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.20000000298023224,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.20000000298023224,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.20000000298023224,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.20000000298023224,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.20000000298023224,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ]
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/07_speed_060.png",
+      "label_overlay": "diagnostics/overlays/07_speed_060.png"
+    },
+    {
+      "id": 8,
+      "image": "images/08_speed_065.png",
+      "image_sha256": "fb8d031950082697dbbdb7a953adb01fb779665b68936e61c6785e22dfd9562c",
+      "speed_kmh": 65,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          242.73546273546273,
+          267.2193278402345
+        ],
+        "tip": [
+          93.22723732869609,
+          312.4245692553368
+        ],
+        "tick_anchor": [
+          105.57195318797041,
+          308.6920263861999
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.475020475020475,
+          0.5229341053624941
+        ],
+        "tip": [
+          0.18244077755126437,
+          0.6113983742765886
+        ],
+        "tick_anchor": [
+          0.20659873422303407,
+          0.6040939851001955
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 163.17680627809776,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/08_speed_065.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        238.76018939009379,
+        762.5174149917148
+      ],
+      "source_tick_anchor_xy": [
+        268.2570544863246,
+        753.5987558073388
+      ],
+      "needle_transform_source_3x3": [
+        [
+          1.0061349978673764,
+          -0.1170367346005707,
+          72.94438165029021
+        ],
+        [
+          0.1170367346005707,
+          1.0061349978673764,
+          -73.76926552527561
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.41850941850941853,
+          0.0,
+          -6.6961506961506965
+        ],
+        [
+          0.0,
+          0.41850941850941853,
+          -6.6961506961506965
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "anchor_method": "interpolated_60_to_70",
+      "estimated_anchor_uncertainty_source_px": 6,
+      "estimated_anchor_uncertainty_output_px": 2.511056511056509,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20324369,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 0,
+          "scale": 1,
+          "translation_px": [
+            0,
+            0
+          ],
+          "corner_jitter_px": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "clean",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 0.0,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/08_speed_065.png",
+      "label_overlay": "diagnostics/overlays/08_speed_065.png"
+    },
+    {
+      "id": 9,
+      "image": "images/09_speed_070.png",
+      "image_sha256": "3901347bc64431be58d9efd49ea1de92a1f57635034d9ae7662c7b257fb2548b",
+      "speed_kmh": 70,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          240.87750014798561,
+          265.15968994838823
+        ],
+        "tip": [
+          84.25987548387047,
+          299.3574542931649
+        ],
+        "tick_anchor": [
+          97.21768634471881,
+          296.52809097474
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4713845404070169,
+          0.5189035028344192
+        ],
+        "tip": [
+          0.1648921242345802,
+          0.585826720730264
+        ],
+        "tick_anchor": [
+          0.19024987542997812,
+          0.5802898062127985
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 167.68267941303256,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/09_speed_070.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        227.57999999999998,
+        726.9847711617156
+      ],
+      "source_tick_anchor_xy": [
+        258.0,
+        721.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.9955809174651796,
+          -0.21758300819161996,
+          145.04240528908292
+        ],
+        [
+          0.21758300819161996,
+          0.9955809174651796,
+          -126.78717212699587
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.42815754290840496,
+          0.009270285069713816,
+          -19.961057144717838
+        ],
+        [
+          -0.008004508672980335,
+          0.4228511242945564,
+          -6.374587547655748
+        ],
+        [
+          5.557058753861989e-06,
+          -2.073187076359592e-06,
+          0.9997501785580961
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2835990970551305,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20332288,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 1.4060929204329575,
+          "scale": 1.0173438240464066,
+          "translation_px": [
+            -3.8852013293915437,
+            -1.0403459079607513
+          ],
+          "corner_jitter_px": [
+            [
+              1.7426726818084717,
+              -0.6338520646095276
+            ],
+            [
+              1.344089150428772,
+              2.2008798122406006
+            ],
+            [
+              1.2160382270812988,
+              -3.2108914852142334
+            ],
+            [
+              0.25651052594184875,
+              -2.7041354179382324
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "shadow",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": {
+            "angle_radians": 1.9116185125153091,
+            "offset_px": 3.7826334127123147,
+            "softness_px": 56.544595821268075,
+            "strength": 0.31149335540213496
+          },
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 0.0,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/09_speed_070.png",
+      "label_overlay": "diagnostics/overlays/09_speed_070.png"
+    },
+    {
+      "id": 10,
+      "image": "images/10_speed_080.png",
+      "image_sha256": "570a71a17edabd4a970e79cdc6e2eee875fea5579885cbbad7c685887ee04c81",
+      "speed_kmh": 80,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          245.57827919189887,
+          274.3274152054938
+        ],
+        "tip": [
+          81.67022525335918,
+          277.9007510359533
+        ],
+        "tick_anchor": [
+          95.1930920270433,
+          277.6059409688955
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4805837166181974,
+          0.5368442567622188
+        ],
+        "tip": [
+          0.15982431556430368,
+          0.5438370861760339
+        ],
+        "tick_anchor": [
+          0.18628785132493797,
+          0.5432601584518503
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 178.75110081189314,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/10_speed_080.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        214.5,
+        659.4047711617155
+      ],
+      "source_tick_anchor_xy": [
+        246.0,
+        659.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.9551325610574893,
+          -0.3999714701027021,
+          288.5233377784555
+        ],
+        [
+          0.3999714701027021,
+          0.9551325610574893,
+          -209.01714331125106
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4306713268177159,
+          0.006584769743357672,
+          -14.763982519071451
+        ],
+        [
+          -0.004528097282207247,
+          0.4280554727137947,
+          -2.4138241156405646
+        ],
+        [
+          -2.215251287565094e-06,
+          6.075606760877459e-06,
+          0.9999808210078511
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.288277198021129,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20340207,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 0.6153738123504309,
+          "scale": 1.0214170885582108,
+          "translation_px": [
+            2.6176446267876665,
+            3.650137217953052
+          ],
+          "corner_jitter_px": [
+            [
+              -2.087390661239624,
+              3.3661305904388428
+            ],
+            [
+              3.1123642921447754,
+              3.4581210613250732
+            ],
+            [
+              1.71239173412323,
+              1.753902554512024
+            ],
+            [
+              0.252481609582901,
+              0.363176167011261
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "mixed",
+          "gain": 0.995281214225483,
+          "gamma": 0.9982513296629448,
+          "shadow": {
+            "angle_radians": 2.8266814601406605,
+            "offset_px": 11.257794268511361,
+            "softness_px": 91.91500549790413,
+            "strength": 0.3079087766995716
+          },
+          "reflection": {
+            "angle_radians": 2.043251785097115,
+            "offset_px": -34.033193344107545,
+            "width_px": 62.06167604918455,
+            "strength": 0.09128436975730782
+          },
+          "gaussian_sigma_px": 0.6923974085896714,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 5.215984328518095,
+          "jpeg_quality": 78
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/10_speed_080.png",
+      "label_overlay": "diagnostics/overlays/10_speed_080.png"
+    },
+    {
+      "id": 11,
+      "image": "images/11_speed_090.png",
+      "image_sha256": "90c100699d2f917fed1e4552277c578dc0ededf0f9cc1cd552cebd931099782d",
+      "speed_kmh": 90,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          242.31217409885105,
+          265.1696000126898
+        ],
+        "tip": [
+          80.38713713360767,
+          230.37283951391424
+        ],
+        "tick_anchor": [
+          93.71014615325636,
+          233.23587763740872
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.47419212152417034,
+          0.5189228963066336
+        ],
+        "tip": [
+          0.15731337990921265,
+          0.45082747458691635
+        ],
+        "tick_anchor": [
+          0.18338580460519835,
+          0.45643028891860804
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 192.12808910022636,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/11_speed_090.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        213.40999999999997,
+        585.2847711617155
+      ],
+      "source_tick_anchor_xy": [
+        245.0,
+        591.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.8777663245548137,
+          -0.5856887108822048,
+          456.1860210377322
+        ],
+        [
+          0.5856887108822048,
+          0.8777663245548137,
+          -269.0682203097574
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4225068615396294,
+          -0.013318081062199118,
+          -2.121406772924874
+        ],
+        [
+          0.010539260241227354,
+          0.4289748303241548,
+          -23.33917086070162
+        ],
+        [
+          -1.0113221854641111e-05,
+          7.138630240371214e-07,
+          1.0000458424339222
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.289646504578157,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20348126,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": -1.519718466712336,
+          "scale": 1.0246386652112056,
+          "translation_px": [
+            3.0774271545285083,
+            -0.7002684473842988
+          ],
+          "corner_jitter_px": [
+            [
+              0.594533383846283,
+              -2.44390606880188
+            ],
+            [
+              -0.5245148539543152,
+              -3.488513946533203
+            ],
+            [
+              -3.3400371074676514,
+              2.81917405128479
+            ],
+            [
+              -1.9165449142456055,
+              -2.3772075176239014
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "shadow_noise",
+          "gain": 1.0262042730422833,
+          "gamma": 1.0779633680200842,
+          "shadow": {
+            "angle_radians": 2.351540080826486,
+            "offset_px": -55.350815473757194,
+            "softness_px": 68.6072085665912,
+            "strength": 0.2599989785064704
+          },
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 4.402282719122477,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/11_speed_090.png",
+      "label_overlay": "diagnostics/overlays/11_speed_090.png"
+    },
+    {
+      "id": 12,
+      "image": "images/12_speed_100.png",
+      "image_sha256": "a802649459b93710134a34a9824fc59921feebcf39b65332a48b17ec1cbd56be",
+      "speed_kmh": 100,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          239.35735323738416,
+          262.3232840520449
+        ],
+        "tip": [
+          81.34943440553094,
+          210.4350311916278
+        ],
+        "tick_anchor": [
+          94.40112969388372,
+          214.72108008326498
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.46840969322384374,
+          0.5133528063640801
+        ],
+        "tip": [
+          0.15919654482491377,
+          0.4118102371656121
+        ],
+        "tick_anchor": [
+          0.18473802288431257,
+          0.42019780838212323
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 198.17967360128696,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/12_speed_100.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        223.21999999999997,
+        514.4347711617155
+      ],
+      "source_tick_anchor_xy": [
+        254.0,
+        526.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.7767948561827002,
+          -0.7514880204964912,
+          624.8810858992799
+        ],
+        [
+          0.7514880204964912,
+          0.7767948561827002,
+          -301.7985260554616
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.41837365775170987,
+          0.013966935131101466,
+          -19.324649142370806
+        ],
+        [
+          -0.015311245675672018,
+          0.4115550262451358,
+          1.8768462238245833
+        ],
+        [
+          2.3673317005100633e-06,
+          -3.2204325412002766e-06,
+          0.9999034445769442
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2568515251445684,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20356045,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 1.9398544688633965,
+          "scale": 0.9897963124617776,
+          "translation_px": [
+            -3.643281650048597,
+            -3.940304770656443
+          ],
+          "corner_jitter_px": [
+            [
+              -2.8520946502685547,
+              0.8560115694999695
+            ],
+            [
+              1.1099038124084473,
+              -0.8331353068351746
+            ],
+            [
+              2.9455766677856445,
+              -3.145406723022461
+            ],
+            [
+              -3.115407705307007,
+              -0.027307143434882164
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "mixed",
+          "gain": 0.9570059635727455,
+          "gamma": 0.9674105292036496,
+          "shadow": {
+            "angle_radians": -2.8329084777465785,
+            "offset_px": -12.36591188036462,
+            "softness_px": 90.19075668425285,
+            "strength": 0.3155688204900506
+          },
+          "reflection": {
+            "angle_radians": 2.9528723669506274,
+            "offset_px": -0.066578761589426,
+            "width_px": 52.29542183971836,
+            "strength": 0.12381973007697405
+          },
+          "gaussian_sigma_px": 0.48989863845053955,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 4.3300315846171,
+          "jpeg_quality": 81
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/12_speed_100.png",
+      "label_overlay": "diagnostics/overlays/12_speed_100.png"
+    },
+    {
+      "id": 13,
+      "image": "images/13_speed_110.png",
+      "image_sha256": "0490fba6c31d25674e988469ed6e274cc9f648c414b3eec3cf4361b227f0e3af",
+      "speed_kmh": 110,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          237.6131293239823,
+          268.01802948732734
+        ],
+        "tip": [
+          94.71574918571945,
+          183.28678996191752
+        ],
+        "tick_anchor": [
+          106.46577583913925,
+          190.2539878338278
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.46499633918587535,
+          0.5244971222843979
+        ],
+        "tip": [
+          0.18535371660610458,
+          0.3586825635262574
+        ],
+        "tick_anchor": [
+          0.20834789792395159,
+          0.37231700163175696
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 210.6658919289695,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/13_speed_110.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        255.91999999999996,
+        442.4947711617155
+      ],
+      "source_tick_anchor_xy": [
+        284.0,
+        460.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.6176555715533897,
+          -0.8952705427279264,
+          813.8341259271092
+        ],
+        [
+          0.8952705427279264,
+          0.6176555715533897,
+          -283.3358428803923
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4096019147251247,
+          0.010243102261340556,
+          -14.880280458124812
+        ],
+        [
+          -0.011904730448351188,
+          0.41206481691787894,
+          3.535997375456767
+        ],
+        [
+          -1.4266644449813386e-05,
+          1.6647270045760902e-06,
+          1.000399715473419
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2391961506782527,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20363964,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 0.9913275593593864,
+          "scale": 0.9894901548766303,
+          "translation_px": [
+            -3.182994841057236,
+            -0.1825570703937327
+          ],
+          "corner_jitter_px": [
+            [
+              -3.4328665733337402,
+              3.000077724456787
+            ],
+            [
+              0.12479854375123978,
+              -2.9423134326934814
+            ],
+            [
+              2.8540022373199463,
+              2.5729188919067383
+            ],
+            [
+              0.459245502948761,
+              -0.5506307482719421
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "noise",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 3.0458017996389266,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/13_speed_110.png",
+      "label_overlay": "diagnostics/overlays/13_speed_110.png"
+    },
+    {
+      "id": 14,
+      "image": "images/14_speed_120.png",
+      "image_sha256": "04b90e9e2933114a1b08e0be31c5e3645dfc6a171d0e593aed04d2d21b733cb4",
+      "speed_kmh": 120,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          244.8930033354035,
+          264.85887589416546
+        ],
+        "tip": [
+          112.88957686742528,
+          149.92638348684613
+        ],
+        "tick_anchor": [
+          123.79434030957239,
+          159.42092218976546
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4792426679753493,
+          0.51831482562459
+        ],
+        "tip": [
+          0.2209189371182491,
+          0.29339801073746796
+        ],
+        "tick_anchor": [
+          0.24225898299329235,
+          0.31197832131069564
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 221.04537566857286,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/14_speed_120.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        290.79999999999995,
+        382.5447711617155
+      ],
+      "source_tick_anchor_xy": [
+        316.0,
+        405.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.46604277822776996,
+          -1.0068457762788294,
+          977.2216248047449
+        ],
+        [
+          1.0068457762788294,
+          0.46604277822776996,
+          -250.60372334720648
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4287640502637228,
+          0.004717419064789559,
+          -13.594425924191462
+        ],
+        [
+          -0.0015317826876468054,
+          0.4248758327316674,
+          -12.155286970967904
+        ],
+        [
+          4.8862023565604575e-06,
+          -3.4983121451680407e-06,
+          0.999963478284754
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2843985346860747,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20371883,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 0.6378435761129202,
+          "scale": 1.0159205973495848,
+          "translation_px": [
+            3.3410953174173095,
+            -2.036543028644001
+          ],
+          "corner_jitter_px": [
+            [
+              -3.0284080505371094,
+              -2.1584014892578125
+            ],
+            [
+              -1.6476305723190308,
+              1.6755627393722534
+            ],
+            [
+              0.45655083656311035,
+              0.5220025777816772
+            ],
+            [
+              -3.108959913253784,
+              -0.3456127941608429
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "bright_soft",
+          "gain": 1.0800922101394608,
+          "gamma": 0.8958622291771092,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.5057800574844024,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 0.0,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/14_speed_120.png",
+      "label_overlay": "diagnostics/overlays/14_speed_120.png"
+    },
+    {
+      "id": 15,
+      "image": "images/15_speed_130.png",
+      "image_sha256": "aeba44a7bd49aafcb6665ed1fd2807e93dea5d2419c8d62da4e0e957f2ac8293",
+      "speed_kmh": 130,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          244.6254245265188,
+          270.6873943956753
+        ],
+        "tip": [
+          142.94231249201758,
+          131.85431732112676
+        ],
+        "tick_anchor": [
+          151.3616769738805,
+          143.3496999332619
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4787190303845769,
+          0.5297209283672707
+        ],
+        "tip": [
+          0.2797305528219522,
+          0.2580319321352774
+        ],
+        "tick_anchor": [
+          0.2962068042541693,
+          0.2805277885191035
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 233.78047817178032,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/15_speed_130.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        349.65999999999997,
+        329.1347711617155
+      ],
+      "source_tick_anchor_xy": [
+        370.0,
+        356.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.2617918860772185,
+          -1.0762298517920734,
+          1144.3672103691451
+        ],
+        [
+          1.0762298517920734,
+          0.2617918860772185,
+          -158.27390410252212
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4259707969380629,
+          -0.006356730445849666,
+          -3.302830558822813
+        ],
+        [
+          0.008915212784213093,
+          0.42431055424220826,
+          -10.357878548900308
+        ],
+        [
+          1.3275287743150617e-05,
+          -6.273613379524322e-07,
+          0.9998152086892437
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2676333487402545,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20379802,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": -0.7580989926376569,
+          "scale": 1.0086798022505175,
+          "translation_px": [
+            -0.7422997009126897,
+            3.0709388260819184
+          ],
+          "corner_jitter_px": [
+            [
+              2.929918050765991,
+              -0.8824186325073242
+            ],
+            [
+              -0.5852769613265991,
+              3.0634453296661377
+            ],
+            [
+              -1.1688998937606812,
+              -2.0689280033111572
+            ],
+            [
+              2.059269666671753,
+              2.1209661960601807
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "reflection",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": null,
+          "reflection": {
+            "angle_radians": -2.884793711910692,
+            "offset_px": 24.367260610180466,
+            "width_px": 43.516312598909,
+            "strength": 0.08275131241129274
+          },
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 0.0,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/15_speed_130.png",
+      "label_overlay": "diagnostics/overlays/15_speed_130.png"
+    },
+    {
+      "id": 16,
+      "image": "images/16_speed_140.png",
+      "image_sha256": "b3ec06210040c71f3f57a1dd32082dd8b0a106e97b812eabe8be8a19cb7dd707",
+      "speed_kmh": 140,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          244.63243875823355,
+          265.72156472949126
+        ],
+        "tip": [
+          172.39717149151758,
+          104.78891164846415
+        ],
+        "tick_anchor": [
+          178.36775815432773,
+          118.09075697213986
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4787327568654277,
+          0.5200030620929379
+        ],
+        "tip": [
+          0.33737215556069977,
+          0.20506636330423514
+        ],
+        "tick_anchor": [
+          0.34905627818850826,
+          0.23109737176544004
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 245.8268811522883,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/16_speed_140.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        415.05999999999995,
+        286.6247711617155
+      ],
+      "source_tick_anchor_xy": [
+        430.0,
+        317.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          0.05303456720463335,
+          -1.11140986475336,
+          1291.8119803507439
+        ],
+        [
+          1.11140986475336,
+          0.05303456720463335,
+          -42.60899582904506
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4255262595473307,
+          -0.012329588482037173,
+          -0.8157965844277113
+        ],
+        [
+          0.01638721313388139,
+          0.4298962428027668,
+          -25.309482632785603
+        ],
+        [
+          -4.830179588442793e-06,
+          5.457080796357711e-06,
+          0.9996981834855039
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.289231383472375,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20387721,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": -2.1574285279399623,
+          "scale": 1.0182321316271767,
+          "translation_px": [
+            2.156237156203357,
+            -2.183567410303632
+          ],
+          "corner_jitter_px": [
+            [
+              -1.5300512313842773,
+              -1.5640299320220947
+            ],
+            [
+              1.0188332796096802,
+              -1.341881275177002
+            ],
+            [
+              2.2166495323181152,
+              3.3976058959960938
+            ],
+            [
+              2.886387825012207,
+              0.084255650639534
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "motion",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 3,
+          "motion_angle_degrees": -58.13271882418952,
+          "noise_std_255": 0.0,
+          "jpeg_quality": null,
+          "motion_kernel": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.3333333432674408,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.3333333432674408,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.3333333432674408,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ]
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/16_speed_140.png",
+      "label_overlay": "diagnostics/overlays/16_speed_140.png"
+    },
+    {
+      "id": 17,
+      "image": "images/17_speed_150.png",
+      "image_sha256": "7407f0ed94ebe34be91f91c2199693409c5157545f93d2129c767fc83609adb3",
+      "speed_kmh": 150,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          243.76366833851705,
+          269.29359536063373
+        ],
+        "tip": [
+          194.14043328549965,
+          101.2171285958457
+        ],
+        "tick_anchor": [
+          198.23442898096087,
+          115.08370401577142
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4770326190577633,
+          0.5269933373006531
+        ],
+        "tip": [
+          0.37992257003033203,
+          0.19807657259460998
+        ],
+        "tick_anchor": [
+          0.3879343032895516,
+          0.22521272801520825
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 253.5511851900722,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/17_speed_150.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        484.82,
+        257.1947711617155
+      ],
+      "source_tick_anchor_xy": [
+        494.0,
+        290.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          -0.15244624759670367,
+          -1.1093134757838596,
+          1412.9064540614243
+        ],
+        [
+          1.1093134757838596,
+          -0.15244624759670367,
+          93.12816774955388
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.42650723067194046,
+          0.005300672182952455,
+          -13.537926740380058
+        ],
+        [
+          -0.006516436407111954,
+          0.42527059012317536,
+          -4.758939382012896
+        ],
+        [
+          7.838730925946113e-06,
+          -4.432171199342344e-06,
+          0.9997305110708523
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2745396763327568,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20395640,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 1.2199801077874288,
+          "scale": 1.016498174912533,
+          "translation_px": [
+            0.07796360853369677,
+            2.3383482263218633
+          ],
+          "corner_jitter_px": [
+            [
+              3.037106513977051,
+              -1.7121862173080444
+            ],
+            [
+              -0.37927305698394775,
+              1.3258893489837646
+            ],
+            [
+              -2.0946226119995117,
+              -0.7106799483299255
+            ],
+            [
+              -1.5133086442947388,
+              0.9941428899765015
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "dim",
+          "gain": 0.7606253036966549,
+          "gamma": 1.0964343057594843,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 0.0,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/17_speed_150.png",
+      "label_overlay": "diagnostics/overlays/17_speed_150.png"
+    },
+    {
+      "id": 18,
+      "image": "images/18_speed_160.png",
+      "image_sha256": "83278c886da164ab548eeec30beb4ab1a7d47f843220abb0874fb8676498f8cb",
+      "speed_kmh": 160,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          242.73546273546273,
+          267.2193278402345
+        ],
+        "tip": [
+          226.76932841932842,
+          97.29288129699968
+        ],
+        "tick_anchor": [
+          228.0876330876331,
+          111.32350532350533
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.475020475020475,
+          0.5229341053624941
+        ],
+        "tip": [
+          0.4437755937755938,
+          0.19039702797847297
+        ],
+        "tick_anchor": [
+          0.4463554463554464,
+          0.21785421785421788
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 264.63229957822,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/18_speed_160.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        557.85,
+        248.47477116171547
+      ],
+      "source_tick_anchor_xy": [
+        561.0,
+        282.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          -0.3436932058084716,
+          -1.0521216099359918,
+          1489.4574195394475
+        ],
+        [
+          1.0521216099359918,
+          -0.3436932058084716,
+          252.3861402181056
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.41850941850941853,
+          0.0,
+          -6.6961506961506965
+        ],
+        [
+          0.0,
+          0.41850941850941853,
+          -6.6961506961506965
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2555282555282758,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20403559,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": 0,
+          "scale": 1,
+          "translation_px": [
+            0,
+            0
+          ],
+          "corner_jitter_px": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "clean",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 0.0,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/18_speed_160.png",
+      "label_overlay": "diagnostics/overlays/18_speed_160.png"
+    },
+    {
+      "id": 19,
+      "image": "images/19_speed_170.png",
+      "image_sha256": "cf2d7290cdf3888b0470f833bb6e9113002607cc806a1647018771922d420ecc",
+      "speed_kmh": 170,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          243.43517319586127,
+          271.08766779375753
+        ],
+        "tip": [
+          263.3641388528799,
+          98.56201002764392
+        ],
+        "tick_anchor": [
+          261.71657624474113,
+          112.82500930075913
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4763897714204722,
+          0.5305042422578425
+        ],
+        "tip": [
+          0.5153897042130722,
+          0.19288064584666129
+        ],
+        "tick_anchor": [
+          0.5121655112421548,
+          0.22079258180187697
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 276.58920686355094,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/19_speed_170.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        631.97,
+        248.47477116171547
+      ],
+      "source_tick_anchor_xy": [
+        629.0,
+        282.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          -0.528232798734361,
+          -0.9720415558902883,
+          1547.0304179350073
+        ],
+        [
+          0.9720415558902883,
+          -0.528232798734361,
+          420.8954852184935
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4209539952452369,
+          -0.010780270134265465,
+          -1.052962734389344
+        ],
+        [
+          0.00966358316125496,
+          0.4249519251394134,
+          -13.533646123756274
+        ],
+        [
+          -7.392878762604012e-06,
+          2.6790860756066584e-06,
+          0.9999609274407906
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2794578040658495,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20411478,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": -1.3867547223880532,
+          "scale": 1.0218170102761017,
+          "translation_px": [
+            2.576764874764044,
+            2.36035714310389
+          ],
+          "corner_jitter_px": [
+            [
+              2.1515414714813232,
+              2.8238368034362793
+            ],
+            [
+              -1.1310367584228516,
+              2.0974361896514893
+            ],
+            [
+              -3.3715670108795166,
+              2.0357043743133545
+            ],
+            [
+              1.442732334136963,
+              -1.7783788442611694
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "mixed",
+          "gain": 0.9069703968439086,
+          "gamma": 1.0459918588334554,
+          "shadow": {
+            "angle_radians": 0.42553971588545725,
+            "offset_px": -55.77685153072308,
+            "softness_px": 84.69703826682775,
+            "strength": 0.2682982016519601
+          },
+          "reflection": {
+            "angle_radians": 2.1546489009874543,
+            "offset_px": -21.390726717950272,
+            "width_px": 54.15887089056656,
+            "strength": 0.09540093886498532
+          },
+          "gaussian_sigma_px": 0.8249645407028037,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 3.1544671300401097,
+          "jpeg_quality": 75
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/19_speed_170.png",
+      "label_overlay": "diagnostics/overlays/19_speed_170.png"
+    },
+    {
+      "id": 20,
+      "image": "images/20_speed_180.png",
+      "image_sha256": "a41ac9915c88a475cedb67d5dadbb9a463b30c3cb77acbeb4f13d9ffdc36044e",
+      "speed_kmh": 180,
+      "speed_label_type": "intended_synthetic_speed",
+      "width": 512,
+      "height": 512,
+      "channels": 1,
+      "needle_position_px": {
+        "pivot": [
+          245.15375310351536,
+          267.5996359373899
+        ],
+        "tip": [
+          296.42882017167733,
+          106.68706268223914
+        ],
+        "tick_anchor": [
+          292.2158429295722,
+          119.90832299168619
+        ]
+      },
+      "needle_position_normalized": {
+        "pivot": [
+          0.4797529414941592,
+          0.5236783482140702
+        ],
+        "tip": [
+          0.5800955384964331,
+          0.20878094458363824
+        ],
+        "tick_anchor": [
+          0.5718509646371276,
+          0.23465425242991428
+        ]
+      },
+      "needle_angle_image_degrees_clockwise_from_right": 287.67456877910104,
+      "needle_angle_physical_degrees": null,
+      "needle_mask": "masks/20_speed_180.png",
+      "mask_semantics": "rendered shaft support before blur; hub excluded",
+      "source_pivot_xy": [
+        596.0,
+        654.5025426476053
+      ],
+      "source_target_tip_xy": [
+        708.27,
+        265.9147711617155
+      ],
+      "source_tick_anchor_xy": [
+        699.0,
+        298.0
+      ],
+      "needle_transform_source_3x3": [
+        [
+          -0.6993576610884931,
+          -0.8461851254489136,
+          1566.6474821656386
+        ],
+        [
+          0.8461851254489136,
+          -0.6993576610884931,
+          607.9075752825538
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_output_homography_3x3": [
+        [
+          0.4168251437163966,
+          -0.015168781516710113,
+          5.844194662377541
+        ],
+        [
+          0.01229671704256975,
+          0.4148121138541377,
+          -12.108711564390266
+        ],
+        [
+          6.881116128065115e-06,
+          -1.1777725799521957e-05,
+          1.0003042593776905
+        ]
+      ],
+      "anchor_method": "manual_visible_tick",
+      "estimated_anchor_uncertainty_source_px": 3,
+      "estimated_anchor_uncertainty_output_px": 1.2472116496153764,
+      "keypoints_in_frame": true,
+      "readability": "manual_review_pending",
+      "review_status": "pending",
+      "dataset_split": "review_only",
+      "rng_seed": 20419397,
+      "augmentation": {
+        "camera": {
+          "rotation_degrees": -1.4571748837972864,
+          "scale": 0.9986825677186206,
+          "translation_px": [
+            1.8691474092861622,
+            3.360962933836613
+          ],
+          "corner_jitter_px": [
+            [
+              3.4826273918151855,
+              -2.62216854095459
+            ],
+            [
+              -2.0623064041137695,
+              -0.48546844720840454
+            ],
+            [
+              -0.4163261353969574,
+              -1.3633040189743042
+            ],
+            [
+              -2.1276793479919434,
+              1.0106873512268066
+            ]
+          ],
+          "border_mode": "reflect101",
+          "source_crop_xywh": [
+            16,
+            16,
+            1222,
+            1222
+          ]
+        },
+        "photometric": {
+          "profile": "noise",
+          "gain": 1.0,
+          "gamma": 1.0,
+          "shadow": null,
+          "reflection": null,
+          "gaussian_sigma_px": 0.0,
+          "motion_length_px": 0,
+          "motion_angle_degrees": null,
+          "noise_std_255": 2.826365761953155,
+          "jpeg_quality": null
+        }
+      },
+      "clean_reference": "diagnostics/clean_references/20_speed_180.png",
+      "label_overlay": "diagnostics/overlays/20_speed_180.png"
+    }
+  ]
+}

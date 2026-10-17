@@ -1,0 +1,42 @@
+{
+  "source_file": "approved_imagegen_master.png",
+  "source_sha256": "c1d0e8a1e204626518853005f5c58bc91113d3bdf8a82477c75787eee26b0f7b",
+  "source_size_wh": [
+    1254,
+    1254
+  ],
+  "pivot_xy": [
+    596.0,
+    654.5025426476053
+  ],
+  "source_needle_tip_xy": [
+    258.0,
+    801.17599
+  ],
+  "source_needle_length_px": 368.45230377653456,
+  "source_needle_angle_deg_image_xy": 156.54180299769078,
+  "needle_to_inner_tick_radius_ratio": 1.09,
+  "needle_layer_encoding": {
+    "alpha": "float32 0..1",
+    "premult": "float32 premultiplied grayscale 0..255"
+  },
+  "reconstructed_60_tick_angle_deg_image_xy": 157.48372457910597,
+  "reconstructed_60_tick_endpoints_xy": [
+    [
+      284.68924366726014,
+      783.5552953944472
+    ],
+    [
+      255.12857837750448,
+      795.8095627175894
+    ]
+  ],
+  "preparation": "Local deterministic inpainting of source needle; local fitted rail and inferred 60 tick reconstruction; photographed shaft texture on a measured tapered outline; original cap retained.",
+  "limitations": [
+    "The 60 km/h tick is hidden by the approved master needle; its restored direction is inferred from neighbouring 50 and 70 ticks and needs user inspection.",
+    "Previously hidden dial pixels are reconstructed. They are not recovered photographic ground truth.",
+    "A short lower coolant-symbol curve occluded by the original shaft is locally reconstructed.",
+    "Needle texture is extracted from the original shaft interior; silhouette is regularized to avoid copying scale and icon pixels.",
+    "Imagegen altered the original photographed dial; geometric labels are relative to this approved master."
+  ]
+}

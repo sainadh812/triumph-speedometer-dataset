@@ -1,0 +1,2 @@
+# Frozen renderer assets preserve the exact previously verified source bytes.
+ring_training_v2/render_source/** -text whitespace=cr-at-eol,-blank-at-eof

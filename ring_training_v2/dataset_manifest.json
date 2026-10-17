@@ -1,0 +1,28 @@
+{
+  "archive": "arc_needle_augmented700.zip",
+  "sha256": "0cac796ac787defbbbc194cd7bb918b4835129568cbdf2d453648b9c5585b06d",
+  "bytes": 68926203,
+  "root_directory": "dataset_v2",
+  "labels_sha256": "76cb9e093b1d7907f340a8e471a6132ba060dfec52550b18e244c1ed31aead6f",
+  "split_counts": {
+    "train": 500,
+    "validation": 100,
+    "test": 100
+  },
+  "source_master_sha256": "c1d0e8a1e204626518853005f5c58bc91113d3bdf8a82477c75787eee26b0f7b",
+  "frozen_source_sha256": {
+    "bw_dataset_500/generate.py": "a54825ce2bd38446159e16de69ca7826581091b548e669ed2039cbe06ac8c49c",
+    "bw_dataset_500/render_core.py": "fdef0fad02c243ee502cd6f410b9d5a9c116212985b72b62fa13a70da063ec52",
+    "bw_dataset_500/calibration.json": "a28c56df8767b139e0e41a9083eb10ecfb6b36c8f6c04165d416577a749d5d4f",
+    "bw_dataset_500/source/preparation.json": "25fd94122bfbd5244e099e8f2384cc3d35f6b53a694e8e3b0b0686625ecf9603",
+    "bw_dataset_500/source/approved_imagegen_master.png": "c1d0e8a1e204626518853005f5c58bc91113d3bdf8a82477c75787eee26b0f7b",
+    "bw_dataset_500/source/clean_plate.png": "201809db982ed6f6eeacb1054bc1ae16b2341184cf80f7e9a8be3ee1e833bbc7",
+    "bw_dataset_500/source/cap_mask.png": "42d91047260cf74673f02b33ca42abb690cc7b933742006de40a404864908de1",
+    "bw_dataset_500/source/needle_layer.npz": "0813bd737097c79fdf80cf4df17db4ea5b44011da427883d11c5fdfa177e4da3",
+    "bw_dataset_500/review_seed/labels.json": "6eb9cb3f4b921e46b00b941b233c812edfd43633215bd3fc8e0d3b28efd1e73b",
+    "source_annotations.json": "a591e84d2b2cccb3e76f74598dce4015642265cbc4eafb14852121739a038cc1",
+    "masks/arc_amodal_inferred.png": "6a86e111bd862e6ff9922999aa205d24394333dc779318f82bedd3ec532179e2",
+    "masks/arc_ignore.png": "83ad6dbaa660dbeaa5c7384b13f99691d837cbf360c793083d3b9f9485671b95"
+  },
+  "mirrors_enabled": false
+}
