@@ -42,6 +42,25 @@ Every completed epoch saves full state to Google Drive. Choose `resume_latest` a
 
 Before/after reports separate original upright images, rotated images, every main angle, and intermediate angles excluded from checkpoint selection. See [training instructions](training_pilot/README.md).
 
+## Completed rotation experiment
+
+The 20-epoch T4 run completed on 2026-10-17, starting from source epoch 47. New epoch **19** was selected by lowest main-validation MAE; epoch 20 remains available as the latest full training state in private Drive storage.
+
+| Synthetic evaluation | Images | MAE before → after (km/h) | Within ±2 km/h before → after |
+|---|---:|---:|---:|
+| All main validation | 1,200 | 46.62 → 2.54 | 6.92% → 47.58% |
+| Original upright views | 100 | 2.16 → 2.34 | 62.00% → 47.00% |
+| Rotated main views | 1,100 | 50.66 → 2.56 | 1.91% → 47.64% |
+| Unseen intermediate angles | 1,200 | 46.93 → 3.82 | 3.67% → 33.25% |
+
+Rotation handling improved substantially, with an upright-performance regression and a remaining gap at unseen angles. **The 98% within ±2 km/h target was not achieved.** Main and unseen-angle 95th-percentile absolute errors are 6.30 and 9.69 km/h. Main-grid 180° MAE improved from 74.77 to 2.69 km/h; unseen 165° remains the weakest angle at 5.50 km/h MAE and 18% within ±2 km/h.
+
+The downloaded model, provenance hashes, prediction CSVs and before/after comparisons passed an independent local audit. Source predictions were reproduced against the separately evaluated CPU baseline, and the selected model passed three CPU inference replay checks. These checks validate the artifacts; they do not establish real-camera accuracy. Full resumable checkpoints and model weights remain private.
+
+See [aggregate results and provenance](results/rotation_v2_pilot/results_summary.json), [all angle comparisons](results/rotation_v2_pilot/rotation_comparison.csv), [training history](results/rotation_v2_pilot/training_history.csv), and [worst predictions](results/rotation_v2_pilot/worst_predictions.csv).
+
+![Rotation performance before and after training](results/rotation_v2_pilot/rotation_before_after.png)
+
 ## Provenance and evaluation limits
 
 All images descend from one approved AI reconstruction based on the dashboard photograph supplied during development. The original photograph's website, author and license are not recorded in available project files. No new license for underlying imagery is asserted, and this project is not affiliated with Triumph.

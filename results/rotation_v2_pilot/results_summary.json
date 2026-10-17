@@ -1,0 +1,210 @@
+{
+  "experiment": "rotation_v2_pilot",
+  "public_dataset_commit": "e438830c87ded1b579534610d03bed76e4e529d0",
+  "source_epoch": 47,
+  "selected_epoch": 19,
+  "latest_completed_epoch": 20,
+  "target_epoch": 20,
+  "training_complete": true,
+  "completion_reason": "target_epoch_reached",
+  "model_selection": "Lowest mean absolute speed error on main synthetic validation, including the zero-update baseline",
+  "training_images": 4800,
+  "main_validation_images": 1200,
+  "unseen_angle_images": 1200,
+  "unique_validation_parent_images": 100,
+  "unique_validation_pose_groups": 50,
+  "rotation_convention": "Whole-dashboard camera rotation in image space; positive clockwise. This is not needle rotation.",
+  "main_rotation_degrees": [
+    -150,
+    -120,
+    -90,
+    -60,
+    -30,
+    0,
+    30,
+    60,
+    90,
+    120,
+    150,
+    180
+  ],
+  "unseen_rotation_degrees": [
+    -165,
+    -135,
+    -105,
+    -75,
+    -45,
+    -15,
+    15,
+    45,
+    75,
+    105,
+    135,
+    165
+  ],
+  "checkpoint_provenance": {
+    "source_checkpoint_sha256": "a284ecb0ceb4892074feea3802d9e79b9e4bc9892c25113b8934b5428a16e97c",
+    "best_model_sha256": "ba47ae2a3c07fd9a490342eebb8a01ac160dfe5e9dbca24dd13014ed68cac270",
+    "archive_sha256": "4bbd353c4814469c2ca294b6ded35ac4a062cf030a66632fb93d235f7db4c03b"
+  },
+  "dataset_provenance": {
+    "main_labels_sha256": "a6e15644d5fa7098b5ea6ba1625b39b21c0c04c4a3d122356cc923dbf9aad4b6",
+    "robustness_labels_sha256": "4f6ebb8055d116d4f5522d48b6514df0e8c3e1968afd673530bc21122c621f1d"
+  },
+  "training_config": {
+    "input_size": 512,
+    "batch_size": 8,
+    "head_epochs": 0,
+    "finetune_epochs": 20,
+    "patience": 7,
+    "seed": 42,
+    "head_lr": 0.001,
+    "finetune_lr": 0.0001,
+    "backbone_lr": 2e-05,
+    "weight_decay": 0.0001,
+    "amp": true,
+    "min_delta_kmh": 0.01,
+    "heatmap_weight": 0.2,
+    "coordinate_weight": 5.0,
+    "heatmap_sigma": 1.5
+  },
+  "main_validation": {
+    "all": {
+      "before": {
+        "n": 1200,
+        "pose_groups": 50,
+        "mae_kmh": 46.61963968010743,
+        "rmse_kmh": 59.9390932640266,
+        "p95_absolute_error_kmh": 122.02635467529295,
+        "max_absolute_error_kmh": 153.646236038208,
+        "bias_kmh": -8.31318138206005,
+        "within_1_kmh_percent": 3.0833333333333335,
+        "within_2_kmh_percent": 6.916666666666667,
+        "within_5_kmh_percent": 11.583333333333332,
+        "pivot_mae_px": 1.9696690821029896,
+        "tip_mae_px": 17.442905763657436
+      },
+      "after": {
+        "n": 1200,
+        "pose_groups": 50,
+        "mae_kmh": 2.5446127403577163,
+        "rmse_kmh": 3.2163811684446006,
+        "p95_absolute_error_kmh": 6.299351997375487,
+        "max_absolute_error_kmh": 12.87714233398438,
+        "bias_kmh": -0.24837997063000983,
+        "within_1_kmh_percent": 24.75,
+        "within_2_kmh_percent": 47.583333333333336,
+        "within_5_kmh_percent": 88.91666666666667,
+        "pivot_mae_px": 0.3167341493410806,
+        "tip_mae_px": 1.0786285340029371
+      }
+    },
+    "original_zero": {
+      "before": {
+        "n": 100,
+        "pose_groups": 50,
+        "mae_kmh": 2.1591212925910943,
+        "rmse_kmh": 2.8089901056665334,
+        "p95_absolute_error_kmh": 5.623648223876958,
+        "max_absolute_error_kmh": 8.607409667968753,
+        "bias_kmh": 0.21995422697067268,
+        "within_1_kmh_percent": 27.0,
+        "within_2_kmh_percent": 62.0,
+        "within_5_kmh_percent": 89.0,
+        "pivot_mae_px": 0.36859276287578546,
+        "tip_mae_px": 1.3127428069021732
+      },
+      "after": {
+        "n": 100,
+        "pose_groups": 50,
+        "mae_kmh": 2.3428969001770006,
+        "rmse_kmh": 2.964855635860088,
+        "p95_absolute_error_kmh": 4.909173889160152,
+        "max_absolute_error_kmh": 9.076329040527341,
+        "bias_kmh": 0.32405738925933847,
+        "within_1_kmh_percent": 28.000000000000004,
+        "within_2_kmh_percent": 47.0,
+        "within_5_kmh_percent": 95.0,
+        "pivot_mae_px": 0.32629627730931227,
+        "tip_mae_px": 1.161226903255418
+      }
+    },
+    "rotated": {
+      "before": {
+        "n": 1100,
+        "pose_groups": 50,
+        "mae_kmh": 50.66150498806346,
+        "rmse_kmh": 62.59861194391281,
+        "p95_absolute_error_kmh": 122.64681091308593,
+        "max_absolute_error_kmh": 153.646236038208,
+        "bias_kmh": -9.088920982881026,
+        "within_1_kmh_percent": 0.9090909090909091,
+        "within_2_kmh_percent": 1.9090909090909092,
+        "within_5_kmh_percent": 4.545454545454546,
+        "pivot_mae_px": 2.115221474760008,
+        "tip_mae_px": 18.90928421427155
+      },
+      "after": {
+        "n": 1100,
+        "pose_groups": 50,
+        "mae_kmh": 2.5629505440105085,
+        "rmse_kmh": 3.2382785116226818,
+        "p95_absolute_error_kmh": 6.3817836904525755,
+        "max_absolute_error_kmh": 12.87714233398438,
+        "bias_kmh": -0.3004197306199506,
+        "within_1_kmh_percent": 24.454545454545453,
+        "within_2_kmh_percent": 47.63636363636364,
+        "within_5_kmh_percent": 88.36363636363636,
+        "pivot_mae_px": 0.3158648649803323,
+        "tip_mae_px": 1.0711195913436207
+      }
+    }
+  },
+  "unseen_angle_robustness": {
+    "before": {
+      "n": 1200,
+      "pose_groups": 50,
+      "mae_kmh": 46.925756377855926,
+      "rmse_kmh": 58.915271975377316,
+      "p95_absolute_error_kmh": 117.478176612854,
+      "max_absolute_error_kmh": 166.99544105529785,
+      "bias_kmh": -3.963738513628642,
+      "within_1_kmh_percent": 2.0,
+      "within_2_kmh_percent": 3.6666666666666665,
+      "within_5_kmh_percent": 8.833333333333334,
+      "pivot_mae_px": 1.9022932289942291,
+      "tip_mae_px": 16.086102969936487
+    },
+    "after": {
+      "n": 1200,
+      "pose_groups": 50,
+      "mae_kmh": 3.8247293836673104,
+      "rmse_kmh": 4.842249137256602,
+      "p95_absolute_error_kmh": 9.687000885009759,
+      "max_absolute_error_kmh": 16.139915466308594,
+      "bias_kmh": 0.06238204316298178,
+      "within_1_kmh_percent": 17.0,
+      "within_2_kmh_percent": 33.25,
+      "within_5_kmh_percent": 70.5,
+      "pivot_mae_px": 0.3877818220676907,
+      "tip_mae_px": 1.2760576896289464
+    }
+  },
+  "latest_epoch_metrics": {
+    "validation_mae_kmh": 2.5621468787193296,
+    "validation_within_2_kmh_percent": 48.583333333333336,
+    "validation_tip_mae_px": 1.173597990984853
+  },
+  "audit_status": "passed",
+  "independent_cpu_baseline_replayed_images": 2400,
+  "selected_model_cpu_replay_samples": 3,
+  "full_optimizer_checkpoints_verified_from_archive": false,
+  "limitations": [
+    "All scores are synthetic development metrics, not real-camera testing.",
+    "Both evaluation sets reuse the same 100 validation parent images and 50 pose groups; rotations are correlated observations.",
+    "Main validation determined the selected epoch. Offset-angle robustness was not used for model selection.",
+    "The experiment tests in-plane image rotations, not arbitrary new 3D viewpoints.",
+    "The compact results archive does not contain full optimizer checkpoints, which remain on Google Drive.",
+    "A 98% real-world accuracy claim is not supported by these results."
+  ]
+}
