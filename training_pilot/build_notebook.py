@@ -28,7 +28,9 @@ md("""
 
 1. In Colab, choose **Runtime → Change runtime type → T4 GPU** (or another available GPU).
 2. Choose **Runtime → Run all**.
-3. When the upload control appears, select **`speedometer_bw500.zip`**. The notebook already contains all training code.
+3. The notebook automatically downloads **`speedometer_bw500.zip`** from the public GitHub release and verifies its checksum. No dataset upload or GitHub token is needed.
+
+[Open the latest notebook from GitHub in Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb). A notebook previously saved to Drive is a separate copy and will not update automatically.
 
 **Output:** best checkpoints, speed/keypoint metrics, prediction tables, learning curves, worst-case overlays, and a results ZIP. The ZIP is offered for download after training. Keep it before disconnecting the runtime.
 
@@ -57,6 +59,7 @@ assert RUN_MODE in ('pilot', 'smoke')
 WORK_DIR = Path(os.environ.get('SPEEDOMETER_WORK_DIR', '/content/speedometer_work' if IN_COLAB else str(Path.cwd() / 'speedometer_work')))
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 ZIP_PATH = Path(os.environ.get('SPEEDOMETER_DATASET_ZIP', '/content/speedometer_bw500.zip' if IN_COLAB else str(Path.cwd() / 'speedometer_bw500.zip')))
+DATASET_URL = 'https://github.com/sainadh812/triumph-speedometer-dataset/releases/download/v1.0.0/speedometer_bw500.zip'
 EXPECTED_ZIP_SHA256 = '92e773ec1ccee15a455a78453e8e5cfe81d04e2d93a57ff83fcea807b6ab3e27'
 EXPECTED_LABELS_SHA256 = 'e77ea6f7354597008bec89b9c98acf8eca03ca76310921c53b2c822f1d2ef195'
 
@@ -71,11 +74,16 @@ if RUN_MODE == 'smoke':
     print('SMOKE CHECK ONLY: short random-weight run, not an accuracy experiment.')
 """)
 md("""
-## 2. Upload and verify the dataset
+## 2. Download and verify the dataset
 
-Choose the supplied **`speedometer_bw500.zip`**, not one of the earlier 20-image archives. All 500 model inputs and the original split labels will be checked. Captions and preview images are excluded from training.
+The public [GitHub release](https://github.com/sainadh812/triumph-speedometer-dataset/releases/tag/v1.0.0) supplies the fixed 500-image archive (about 101 MB). A verified local copy is reused on reruns. Otherwise, the archive is downloaded to a temporary file, checked, and then moved into place. Interrupted downloads can be retried by rerunning this cell.
+
+All 500 model inputs and the original split labels will be checked. Captions and preview images are excluded from training. No login or token is required.
 """)
 code("""
+import tempfile
+import requests
+
 def file_sha256(path):
     h = hashlib.sha256()
     with Path(path).open('rb') as handle:
@@ -83,20 +91,47 @@ def file_sha256(path):
             h.update(block)
     return h.hexdigest()
 
-if not ZIP_PATH.is_file():
-    if not IN_COLAB:
-        raise FileNotFoundError('Set SPEEDOMETER_DATASET_ZIP to the supplied dataset ZIP.')
-    from google.colab import files
-    print('Select speedometer_bw500.zip (approximately 101 MB).')
-    uploaded = files.upload()
-    candidates = [Path(name).resolve() for name in uploaded if name.lower().endswith('.zip')]
-    if len(candidates) != 1:
-        raise ValueError('Upload exactly one dataset ZIP, then rerun this cell.')
-    ZIP_PATH = candidates[0]
-    del uploaded
+def download_dataset(url, destination, expected_sha256, attempts=3):
+    destination = Path(destination)
+    if destination.is_file() and file_sha256(destination) == expected_sha256:
+        print('Using the verified cached dataset:', destination)
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    for attempt in range(1, attempts + 1):
+        with tempfile.NamedTemporaryFile(prefix=destination.name + '.', suffix='.part',
+                                         dir=destination.parent, delete=False) as temporary:
+            partial_path = Path(temporary.name)
+        try:
+            print(f'Downloading dataset from GitHub (attempt {attempt}/{attempts})...')
+            downloaded = 0
+            next_progress = 25 * 1024 * 1024
+            with requests.get(url, stream=True, timeout=(30, 60)) as response:
+                response.raise_for_status()
+                with partial_path.open('wb') as handle:
+                    for block in response.iter_content(chunk_size=1024 * 1024):
+                        if block:
+                            handle.write(block)
+                            downloaded += len(block)
+                            if downloaded >= next_progress:
+                                print(f'  {downloaded / 1_000_000:.0f} MB downloaded')
+                                next_progress += 25 * 1024 * 1024
+            if file_sha256(partial_path) != expected_sha256:
+                raise ValueError('Downloaded dataset checksum does not match the approved archive.')
+            partial_path.replace(destination)
+            print(f'Downloaded and verified {downloaded / 1_000_000:.1f} MB.')
+            return
+        except (requests.RequestException, OSError, ValueError) as error:
+            if attempt == attempts:
+                raise RuntimeError('Dataset download failed. Check the connection and rerun this cell.') from error
+            print('Download did not complete or verify; retrying...')
+            time.sleep(2 * attempt)
+        finally:
+            partial_path.unlink(missing_ok=True)
+
+download_dataset(DATASET_URL, ZIP_PATH, EXPECTED_ZIP_SHA256)
 
 if file_sha256(ZIP_PATH) != EXPECTED_ZIP_SHA256:
-    raise ValueError('This is not the verified 500-image archive. Select the supplied speedometer_bw500.zip.')
+    raise ValueError('Dataset checksum mismatch; rerun this cell to download the approved archive.')
 
 with zipfile.ZipFile(ZIP_PATH) as archive:
     if archive.testzip() is not None:
@@ -285,6 +320,7 @@ notebook.metadata.update({
 })
 nbf.validate(notebook)
 target = PROJECT / "Speedometer_Training_Colab.ipynb"
-nbf.write(notebook, target)
+with target.open('w', encoding='utf-8', newline='\n') as handle:
+    nbf.write(notebook, handle)
 print(target)
 print(f"Cells: {len(cells)}; embedded core SHA256: {core_hash}")

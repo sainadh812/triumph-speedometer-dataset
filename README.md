@@ -8,7 +8,7 @@ A 500-image grayscale pilot dataset for reading a Triumph Scrambler 400 XC analo
 - [SHA-256 checksum](https://github.com/sainadh812/triumph-speedometer-dataset/releases/download/v1.0.0/speedometer_bw500.zip.sha256)
 - [Release page](https://github.com/sainadh812/triumph-speedometer-dataset/releases/tag/v1.0.0)
 
-The ZIP is a release asset; cloning the repository does not download the dataset. If the repository is private, sign in with an account that has access to download the assets.
+The public ZIP is a release asset; cloning the repository does not download the dataset. No GitHub sign-in is required to download it. The Colab notebook downloads this asset automatically.
 
 Dataset SHA-256:
 
@@ -34,10 +34,12 @@ Labels and audit metadata are available in [dataset_metadata](dataset_metadata/)
 
 ## Train in Google Colab
 
-1. Download [Speedometer_Training_Colab.ipynb](Speedometer_Training_Colab.ipynb) using GitHub's download button, then upload it at https://colab.research.google.com/.
+1. Open the [training notebook directly in Google Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb).
 2. Choose **Runtime > Change runtime type > T4 GPU**, then **Run all**.
-3. Upload `speedometer_bw500.zip` when prompted. The notebook verifies its checksum.
+3. The notebook automatically downloads `speedometer_bw500.zip` from the public GitHub release and verifies its SHA-256 checksum before extraction. It reuses a cached ZIP only when its checksum matches.
 4. Keep the generated results ZIP after the experiments finish.
+
+An existing notebook saved in Google Drive is a separate copy and does not automatically receive these changes. Open the GitHub notebook link above to use the updated download code; save a new copy to Drive if desired.
 
 The self-contained notebook trains MobileNetV3-Small with speed regression and supervised needle pivot/tip heatmaps. It compares nested subsets of 100, 250, and 400 training images using the same 100 validation images. The default input remains 512 x 512 grayscale, repeated across three channels for pretrained-weight compatibility.
 

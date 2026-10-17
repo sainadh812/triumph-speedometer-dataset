@@ -4,13 +4,15 @@ This pilot trains a compact neural network to read the synthetic Triumph dashboa
 
 ## Run in Google Colab
 
-1. Open [Google Colab](https://colab.research.google.com/) and upload `Speedometer_Training_Colab.ipynb` from the parent `speedometer_colab` folder.
+1. Open the [training notebook directly in Google Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb).
 2. Choose **Runtime > Change runtime type > T4 GPU**, then save the setting. An available CUDA GPU can also be used.
-3. Choose **Runtime > Run all**. When the notebook asks for a dataset, upload the existing `speedometer_bw500.zip` from the same parent folder.
+3. Choose **Runtime > Run all**. The notebook automatically downloads `speedometer_bw500.zip` from the public GitHub release and verifies its SHA-256 checksum before extracting it. It reuses a cached ZIP only when its checksum matches.
 4. Keep the notebook running through its three experiments and result export. Each experiment prints training progress and synthetic validation errors.
 5. The notebook creates a results ZIP and requests its download at completion. Keep that ZIP before disconnecting the Colab runtime. Automatic download is skipped in local mode.
 
-The notebook contains its training code, so no repository checkout or separate upload of `train_core.py` is needed. Its first pretrained-model initialization needs internet access to obtain MobileNet weights. If that download fails, training stops with a clear error instead of silently starting with random weights.
+An existing notebook saved in Google Drive is a separate copy and does not automatically receive these changes. Open the GitHub notebook link above to use the updated download code; save a new copy to Drive if desired.
+
+The dataset comes from the [v1.0.0 release asset](https://github.com/sainadh812/triumph-speedometer-dataset/releases/download/v1.0.0/speedometer_bw500.zip); no GitHub sign-in or manual dataset upload is required. The notebook contains its training code, so no repository checkout or separate upload of `train_core.py` is needed. Its first pretrained-model initialization also needs internet access to obtain MobileNet weights. If that download fails, training stops with a clear error instead of silently starting with random weights.
 
 ## What the pilot measures
 
