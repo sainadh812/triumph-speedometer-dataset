@@ -1,5 +1,6 @@
 """Offline dataset-download integrity checks; no network or credentials used."""
 import hashlib
+import io
 import json
 from pathlib import Path
 import shutil
@@ -63,6 +64,23 @@ class DatasetHelperTests(unittest.TestCase):
         data = self.prepare(manifest, part)
         self.assertTrue((data / 'labels.jsonl').is_file())
         self.assertEqual(self.prepare(manifest, part), data)
+
+    def test_single_zip_part_named_like_archive_has_distinct_temp_writers(self):
+        manifest, part = self.fixture()
+        manifest['parts'][0]['filename'] = manifest['archive_name']
+        path = self.base / 'single_zip_manifest.json'
+        path.write_text(json.dumps(manifest), encoding='utf-8')
+        # Exercise the real download_verified temporary-file behavior; mocking
+        # that function itself would miss the original shared-.partial bug.
+        with patch('rpm_training_v1.notebook_helpers.urllib.request.urlopen',
+                   return_value=io.BytesIO(part.read_bytes())) as request:
+            data = prepare_dataset(path, 'https://example.invalid/pinned', self.work)
+            self.assertEqual(prepare_dataset(path, 'https://example.invalid/pinned', self.work), data)
+            request.assert_called_once()
+        self.assertTrue((data / 'labels.jsonl').is_file())
+        archive = self.work / manifest['archive_name']
+        self.assertEqual(hashlib.sha256(archive.read_bytes()).hexdigest(), manifest['sha256'])
+        self.assertEqual(list(self.work.glob('.*.assemble-*.partial')), [])
 
     def test_zip_parent_traversal_rejected(self):
         manifest, part = self.fixture([('dataset/../../escape.txt', 'bad')])

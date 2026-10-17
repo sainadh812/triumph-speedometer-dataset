@@ -1,6 +1,6 @@
 {
-  "scope": "Offline archive/helper integrity regression audit; no network used.",
-  "tests_run": 10,
+  "scope": "Offline helper integrity audit including actual download temporary-file behavior for a ZIP named as its own single part.",
+  "tests_run": 11,
   "passed": true,
   "failures": [],
   "errors": []

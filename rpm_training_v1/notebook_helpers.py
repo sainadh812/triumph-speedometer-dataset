@@ -7,6 +7,7 @@ import re
 import shutil
 import stat
 import urllib.request
+import uuid
 import zipfile
 
 
@@ -49,16 +50,25 @@ def prepare_dataset(manifest_path,base_url,work):
             raise ValueError('Unsafe part filename')
     archive=work/manifest['archive_name']
     if not archive.is_file() or sha256(archive)!=manifest['sha256']:
-        pending=archive.with_name(archive.name+'.partial')
-        with pending.open('wb') as output:
-            for entry in manifest['parts']:
-                part=download_verified(base_url+'/'+entry['filename'],work/entry['filename'],entry['sha256'])
-                if part.stat().st_size!=entry['bytes']:
-                    raise ValueError('Part size mismatch')
-                with part.open('rb') as source: shutil.copyfileobj(source,output)
-        if pending.stat().st_size!=manifest['bytes'] or sha256(pending)!=manifest['sha256']:
-            raise ValueError('Reassembled archive checksum mismatch')
-        os.replace(pending,archive)
+        # A single-part manifest may name the ZIP itself. Download every part
+        # before opening the assembly file, and keep assembly/download temps
+        # distinct so neither writer can truncate or lock the other's bytes.
+        parts=[]
+        for entry in manifest['parts']:
+            part=download_verified(base_url+'/'+entry['filename'],work/entry['filename'],entry['sha256'])
+            if part.stat().st_size!=entry['bytes']:
+                raise ValueError('Part size mismatch')
+            parts.append(part)
+        pending=archive.with_name('.'+archive.name+'.assemble-'+uuid.uuid4().hex+'.partial')
+        try:
+            with pending.open('xb') as output:
+                for part in parts:
+                    with part.open('rb') as source: shutil.copyfileobj(source,output)
+            if pending.stat().st_size!=manifest['bytes'] or sha256(pending)!=manifest['sha256']:
+                raise ValueError('Reassembled archive checksum mismatch')
+            os.replace(pending,archive)
+        finally:
+            pending.unlink(missing_ok=True)
     extract=work/('extracted_'+manifest['sha256'][:16])
     marker=extract/'.verified_archive.json'
     if marker.is_file():
