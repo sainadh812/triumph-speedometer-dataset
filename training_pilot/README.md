@@ -1,104 +1,87 @@
-# Speedometer training with Google Drive recovery
+# Full-circle rotation training from the best epoch-47 model
 
-The self-contained `Speedometer_Training_Colab.ipynb` continues the existing 400-image pilot and saves complete training state to Google Drive after each completed epoch. The same 100 synthetic validation images, representing 50 pose groups, are retained.
+`Speedometer_Training_Colab.ipynb` starts from the existing best epoch-47 model, trains on the rotation dataset, and compares source and selected models on identical images. The previous 500-image workflow is preserved in `Speedometer_Baseline_500_Colab.ipynb`.
 
-## Start or resume in Colab
+## Run in Colab
 
 1. Open the [latest notebook in Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb).
 2. Select **Runtime > Change runtime type > T4 GPU**, then **Run all**.
-3. Authorize the Google Drive mount when prompted. The notebook verifies that its Drive folder can be written and read.
-4. Leave `TRAIN_MODE = "resume_latest"` and `EXPERIMENT_NAME = "speedometer_400_continuation_v1"` for the default continuation.
-5. Inspect the final metrics and prediction overlays. A compact results ZIP is saved to Drive and offered for download.
+3. Authorize the Google Drive mount when prompted. The notebook verifies the mount and tests writing and reading its checkpoint folder.
+4. Keep `TRAIN_MODE = "resume_latest"` and `EXPERIMENT_NAME = "speedometer_rotation_v2_from47"` for the default experiment.
+5. Inspect the before/after reports. A compact results ZIP is saved to Drive and offered for download.
 
-The fixed 500-image dataset downloads automatically from the [public release](https://github.com/sainadh812/triumph-speedometer-dataset/releases/tag/v1.0.0). Its archive, source labels and model inputs are checked against recorded checksums. No dataset upload or GitHub token is needed. A previously copied notebook in Drive does not update automatically; use the latest linked notebook when adopting this workflow.
+The dataset downloads from the [v2.0.0 release](https://github.com/sainadh812/triumph-speedometer-dataset/releases/tag/v2.0.0), with no dataset upload or GitHub token required. Archive and label checksums are embedded in the notebook. A notebook previously copied into Drive does not update automatically; open the current linked notebook when adopting this workflow.
 
-The approved legacy seed must be at:
+The source model is read from:
 
 ```text
-/content/drive/MyDrive/SpeedometerTraining/pilot_best_epoch29.pt
+/content/drive/MyDrive/SpeedometerTraining/experiments/speedometer_400_continuation_v1/runs/20261017_090632_970209_082ca611/best_model.pt
 ```
 
-Its required SHA256 is `a2ed22a3feb4d4d5f8552bc31af6c5051b66503840ab8a22d3f361a5e6a1dd36`. The notebook verifies those bytes before importing them.
+Its required SHA256 is `a284ecb0ceb4892074feea3802d9e79b9e4bc9892c25113b8934b5428a16e97c`. Earlier experiments and their checkpoints are preserved.
 
-## Three training modes
+## Dataset and evaluation design
+
+| Set | Images | Purpose |
+|---|---:|---|
+| Main training | 4,800 | Optimizer updates |
+| Main validation | 1,200 | Model selection and early stopping |
+| Unseen-angle robustness | 1,200 | Before/after evaluation only |
+
+The main set rotates each of the original 500 images through 12 angles: **0°,30°,60°,90°,120°,150°,180°,-150°,-120°,-90°,-60°,-30°**, with positive angles clockwise. Original 0° images remain included. Needle pivot/tip labels transform with each image, while the speed label remains unchanged. All variants of a clean pose retain the original train/validation split.
+
+The separate robustness set rotates the 100 original validation parents through **15°,45°,75°,105°,135°,165°,-165°,-135°,-105°,-75°,-45°,-15°**. Those angles are absent from the training rotation grid. This set never changes optimizer updates, early stopping or checkpoint selection.
+
+The many rotations still represent the same original pose groups; main validation has **50 groups**, not 1,200 independent real trials. The robustness set also shares these parents and the reconstructed master. It checks interpolation to unseen rotations rather than independent scene generalization. A finite angle grid cannot establish perfect accuracy at every possible camera angle.
+
+## New experiment, fixed budget
+
+Changing the dataset requires an explicit **transfer warm start**, not exact resumption of the old optimizer trajectory. The notebook imports epoch-47 weights, resets optimizer/RNG state once, and records the source checkpoint, source dataset and epoch in provenance.
+
+Before the first update, the source model is evaluated on the **new main validation set**. Its new baseline, rather than its historical metric on the original dataset, becomes the comparison threshold for the best checkpoint. The initial state is saved as **new experiment epoch 0**. The default fixed target is **epoch 20**, subject to early stopping. The source epoch remains 47 in provenance; it is not confused with new-experiment epoch numbering.
+
+The source model is also evaluated on unseen-angle robustness before training. After training, the selected best checkpoint is evaluated on the same robustness images. Cached evaluations are bound to the exact model hash, label hash, selected sample IDs and dependency versions.
+
+## Three notebook modes
 
 | Mode | Behavior |
 |---|---|
-| `resume_latest` | Restore the most recently published verified, compatible full-state checkpoint. This is the normal restart setting. |
-| `resume_best` | Restore the complete checkpoint with the lowest validation MAE. This rewinds model, optimizer and training counters together, while retaining the saved target epoch. |
-| `fresh` | Create a new experiment from ImageNet weights, or random weights when `FRESH_PRETRAINED = False`. A new experiment name is required. |
+| `resume_latest` | Restore the most recently published compatible full state. On this new experiment's first run only, import the verified epoch-47 seed. |
+| `resume_best` | Restore the complete state with the lowest main-validation MAE, intentionally rewinding optimizer and counters together. |
+| `fresh` | Initialize a new model from ImageNet, or random weights when `FRESH_PRETRAINED=False`. Requires a new experiment name. |
 
-For a fresh experiment, choose a new name such as `speedometer_fresh_v2`. Later switch to `resume_latest` while keeping that name. Existing experiment folders and checkpoints are preserved. Fresh training never overwrites them.
+For a fresh experiment, choose a name such as `speedometer_rotation_fresh_v1`. Later resume that same name. Fresh runs use 5 head-training and up to 25 fine-tuning epochs; transfer runs use up to 20 fine-tuning epochs. A saved `experiment_config.json` governs subsequent resumes, so changing fresh-only controls does not alter an existing model.
 
-The first setup writes `experiment_config.json`. Resume uses that saved configuration, including batch size, losses, epoch-stage budgets, sample selection and seed. Changing `FRESH_PRETRAINED` does not change an already initialized model. Input and output paths are rebound to the current session and its new run folder.
+Fresh experiments and their later resumes require no private epoch-47 seed. They report main validation and after-training robustness results. Source-model comparisons are explicitly omitted rather than presenting an unsupported improvement claim.
 
-Exact resume rejects a changed dataset, incompatible training configuration, changed device type, or different recorded versions of PyTorch, torchvision, NumPy or Pillow. A new Colab runtime may update dependencies; if versions differ, the notebook shows the saved and current versions and stops. Restore the compatible environment before continuing. It does not automatically replace CUDA packages or pretend that a new initialization is a continuation. Source hashes are recorded for provenance; use the same implementation for a reproducible trajectory.
+Ordinary restart does **not** add another 20 epochs. It retains the saved target and early-stopping decision. A completed run is evaluated without additional training. `EXTEND_BY_EPOCHS` defaults to **0**; a positive value explicitly adds a budget. Reset it to 0 for ordinary restarts.
 
-## The initial legacy import and fixed budget
+Exact continuation checks the dataset, selected sample IDs, configuration, device type and recorded versions of PyTorch, torchvision, NumPy and Pillow. Dependency mismatch produces an explicit error. Restore the compatible environment rather than treating a reset model as a continuation. Source hashes are recorded; use the same implementation when reproducing a trajectory.
 
-The existing best checkpoint was saved at **epoch 29**. It contains model weights and metrics, but lacks optimizer, mixed-precision scaler and random-generator state. Therefore the first import is an explicit **warm start with a new optimizer**, rather than an exact continuation of the original optimizer trajectory.
+## Persistence and recovery
 
-The default continuation uses **20 additional fine-tuning epochs**, giving a fixed absolute target of **epoch 49**, with early stopping enabled. A full-state recovery checkpoint is saved at the imported boundary before new epochs run. Subsequent sessions restore full state from these new checkpoints.
-
-Rerunning `resume_latest` does **not** grant another 20 epochs. It finishes the remaining saved budget, or performs evaluation without additional training if that budget is already complete. A completed early-stopping decision is also retained. `EXTEND_BY_EPOCHS` defaults to **0**; a positive value deliberately adds a new budget. Reset that setting to 0 before ordinary restarts so the extension is not requested again.
-
-Legacy import occurs only when an experiment has no full-state checkpoint artifacts and its manifest permits that import. If files exist but none is a verified compatible full-state checkpoint, the notebook fails clearly. It never treats corruption as permission to restart from legacy or fresh weights.
-
-## What survives a disconnect
-
-Each invocation receives a unique folder under:
+Each invocation receives a unique folder beneath:
 
 ```text
 MyDrive/SpeedometerTraining/experiments/<experiment_name>/runs/<unique_run_id>/
 ```
 
-Every completed epoch saves model weights, optimizer state, mixed-precision scaler state, Python/NumPy/PyTorch/CUDA random-generator states, data-loader generator states, training history, stage progress, early-stopping counters, the best model so far and the fixed target epoch.
+Every completed epoch saves model weights, optimizer, AMP scaler, Python/NumPy/PyTorch/CUDA RNG states, data-loader generators, history, stage progress, early-stopping counters, best state, transfer baseline and fixed target. Files are staged, copied, rehashed and published with `.complete.json` sidecars.
 
-Checkpoints are staged, copied to Drive, verified by SHA256 and then published with an `epoch_*.complete.json` sidecar. Discovery verifies the bytes again before restoration. Incomplete or corrupt uploads are preserved and skipped when an older compatible verified checkpoint exists; their paths are printed. If no valid checkpoint remains, training stops for recovery rather than silently resetting.
+An interrupted epoch resumes from the last verified completed epoch. Incomplete or corrupt saves are preserved and skipped when an older compatible checkpoint exists. If none is usable, the notebook stops; it never silently imports seed weights or starts fresh. Drive's mounted filesystem cannot guarantee remote upload completion at the instant of disconnection, so earlier recovery files remain intact. Keep enough Drive space for per-epoch states.
 
-A mid-epoch interruption loses that unfinished epoch's work; recovery starts from the last completed verified epoch. Drive's mounted filesystem cannot guarantee that a remote upload finishes at the exact instant of disconnection. Retaining previous epoch files provides independent recovery points. Keep sufficient Drive space for the growing set of full-state files.
+## Model and reports
 
-## Model and settings
+The architecture remains MobileNetV3-Small with continuous speed regression and auxiliary pivot/tip heatmaps. Inputs are **512 × 512 grayscale**, repeated into three channels and ImageNet-normalized. The batch size is 8. Final encoder blocks and output heads are fine-tuned with AdamW; encoder batch-normalization running statistics remain frozen. No additional training-time geometry changes are applied to these labeled images.
 
-| Setting | Default continuation |
-|---|---|
-| Input | 512 × 512 grayscale dashboard crop |
-| Encoder | MobileNetV3-Small, initialized from the trained legacy model |
-| Outputs | Continuous speed, needle pivot and needle tip |
-| Spatial supervision | Two 128 × 128 heatmaps and coordinate loss |
-| Samples | 400 training / 100 synthetic validation |
-| Batch size | 8 |
-| Training | Fine-tune the final four encoder blocks and output heads |
-| Optimizer | AdamW, with a smaller learning rate for encoder parameters |
-| Stopping | Saved target or early stopping after 7 epochs without material MAE improvement |
+`rotation_comparison.csv` and `rotation_before_after.png` compare source and selected models. `comparison_main_validation.csv` separates original 0°, all rotated images and each angle. `comparison_unseen_angles.csv` covers the held-out offset grid. Negative MAE change means improvement; positive change in the percentage within ±2 km/h means improvement. Inspect original 0° performance for regressions.
 
-Fresh experiments start with 5 head-training epochs and up to 25 fine-tuning epochs. Grayscale is repeated into three identical channels and ImageNet-normalized to reuse pretrained features; no color information is added. Encoder batch-normalization running statistics stay frozen. The dataset already contains lighting, blur, noise and camera variations, so the training module applies no additional geometry that could misalign labels.
+The run also exports metrics by appearance/speed/calibration region, per-frame predictions, training history, worst-prediction overlays, source provenance and inference examples. The green overlay is the supplied needle label; magenta is the predicted needle.
 
-The speed head combines image features and predicted needle coordinates. It does not directly convert an uncorrected perspective angle to speed. The auxiliary heatmaps support inspection; they are not confidence scores or an unreadability detector.
+The compact ZIP includes the best inference checkpoint, evaluation CSVs, reports, plots, source code and Drive paths. Full per-epoch states remain on Drive and are excluded from the ZIP. **Retain the Drive experiment folder for exact training resume.**
 
-## Inspect and export results
+## Accuracy interpretation and checks
 
-Each run produces `metrics.json`, per-frame `validation_predictions.csv`, `history.csv`, learning curves, worst-prediction overlays, configuration and provenance reports, and the selected `best_model.pt` for inference. Metrics also separate appearance profiles, speed bins and the region affected by the inferred 60 km/h anchor. The green line in visual reports is the label; magenta is the predicted needle.
+The proposed real-world target is **98% of readable frames within ±2 km/h of a verified dial reading**, with unreadable frames reported separately. MAE is average absolute error and is different from the fraction meeting that tolerance. Neither synthetic validation nor synthetic rotation robustness establishes real-camera accuracy. Independent labeled dashboard footage remains necessary; camera crops must match training framing. No confidence score or unreadability detector is claimed.
 
-The compact results ZIP includes the best inference checkpoint, reports, plots, source code and `drive_paths.json`. It excludes duplicate per-epoch full-state checkpoints, which remain in Drive. **The ZIP alone does not provide exact training resume; retain the Drive experiment folder.** Local smoke runs do not trigger browser downloads.
-
-The proposed real-world target remains **at least 98% of readable frames within ±2 km/h of a verified dashboard reading**, with unreadable frames reported separately. MAE is average absolute error and is different from the percentage meeting that tolerance. Reports include both, plus RMSE, 95th-percentile error, maximum error and keypoint distances.
-
-Synthetic validation is development evidence, not a real-world test. Independent real dashboard footage has not yet been supplied. Camera crops must match training framing, and real labeled recording sessions are still needed before judging live-feed accuracy or adding temporal smoothing.
-
-## Developer checks
-
-`build_notebook.py` embeds the current `train_core.py` and `notebook_workflow.py` and validates notebook code cells. `check_notebook.py` executes the generated notebook against a local mock Drive using 128-pixel inputs, 8 training images, 4 validation images, random initialization and two epochs. It then reruns with `resume_latest`, verifies the fixed target does not expand, checks full-state fields and hashes, and inspects compact ZIP contents. This is a software smoke check, not a model-performance experiment or a remote Drive upload test.
-
-The persistent core API is:
-
-```python
-result = train_persistent(
-    config,
-    mode="resume_latest",  # fresh, resume_latest, resume_best, or explicit warm_start
-    search_root=experiment_directory,
-    extend_by_epochs=0,
-)
-```
-
-For inference, `load_model(best_model_path)` and `predict_image(model, image, input_size=512)` apply the saved model to a matched dashboard crop. Keypoint pixel coordinates refer to the resized input. The model does not locate the dashboard in an arbitrary full camera frame.
+`build_notebook.py` embeds the current training and workflow modules. The local notebook smoke check uses a random test fixture, 128-pixel inputs, complete subsets of 24 training/24 validation images, 24 robustness images and two epochs. It exercises transfer, complete-state saves, subsequent resume and before/after artifacts. Its metrics are software checks, not results from the trained epoch-47 model. Remote Drive authorization/upload behavior and GPU performance require actual Colab execution.

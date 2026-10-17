@@ -1,0 +1,51 @@
+{
+  "count": 6000,
+  "new_training_and_validation_variants": 5500,
+  "retained_originals": 500,
+  "split_counts": {
+    "train": 4800,
+    "validation": 1200
+  },
+  "robustness_count": 1200,
+  "angles_degrees": [
+    0,
+    30,
+    60,
+    90,
+    120,
+    150,
+    180,
+    -150,
+    -120,
+    -90,
+    -60,
+    -30
+  ],
+  "unseen_angles_degrees": [
+    15,
+    45,
+    75,
+    105,
+    135,
+    165,
+    -165,
+    -135,
+    -105,
+    -75,
+    -45,
+    -15
+  ],
+  "train_pose_groups": 210,
+  "validation_pose_groups": 50,
+  "pose_group_leakage": false,
+  "labels_sha256": "a6e15644d5fa7098b5ea6ba1625b39b21c0c04c4a3d122356cc923dbf9aad4b6",
+  "robustness_labels_sha256": "4f6ebb8055d116d4f5522d48b6514df0e8c3e1968afd673530bc21122c621f1d",
+  "source_sha256": "c1d0e8a1e204626518853005f5c58bc91113d3bdf8a82477c75787eee26b0f7b",
+  "size": [
+    512,
+    512
+  ],
+  "channels": 1,
+  "created_seconds": 247.98,
+  "limitation": "One synthetic master. Rotations are correlated variants, not new independent poses or real test data."
+}

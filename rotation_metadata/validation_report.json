@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "tests_run": 9,
+  "failures": 0,
+  "errors": 0,
+  "elapsed_seconds": 14.527694700052962,
+  "test_file_sha256": "10f35bc7d8ebabcc251b600975247a65308dd2c1afdba5c83049dc640290025b",
+  "generator_sha256": "8c1b12a8464d2904cfd42438b535e29e084b586e92944d08fd39708ca8e5860b",
+  "parent_labels_sha256": "e77ea6f7354597008bec89b9c98acf8eca03ca76310921c53b2c822f1d2ef195",
+  "main_labels_sha256": "a6e15644d5fa7098b5ea6ba1625b39b21c0c04c4a3d122356cc923dbf9aad4b6",
+  "robustness_labels_sha256": "4f6ebb8055d116d4f5522d48b6514df0e8c3e1968afd673530bc21122c621f1d",
+  "checks": [
+    "Independent clockwise analytic transform, pixel-center and inverse checks",
+    "Exact 90/180-degree image and mask array rotations",
+    "All 7,200 coordinate/homography records verified independently",
+    "All 500 zero-angle image and mask byte hashes preserved",
+    "All 6,000 main and 1,200 robustness split/group lineages and angles audited",
+    "Sampled every angle: grayscale, image/mask SHA256, binary masks and tip alignment",
+    "Constant padding tested; no reflected needle/ticks introduced"
+  ],
+  "scope": "Offline dataset geometry/provenance audit; does not establish model accuracy or independently verify all 7,200 rendered-image file hashes.",
+  "failure_details": []
+}

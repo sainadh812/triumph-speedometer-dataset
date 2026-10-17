@@ -369,7 +369,8 @@ class CheckpointTests(unittest.TestCase):
         with patch.object(workflow, "LEGACY_SHA256", core._sha256(legacy)):
             plan = workflow.prepare_persistent_run(
                 core, data_dir=DATA_DIR, drive_root=drive, experiment_name="continuation",
-                requested_mode="resume_latest", run_mode="pilot", warm_start_path=legacy)
+                requested_mode="resume_latest", run_mode="pilot", warm_start_path=legacy,
+                approved_source_sha256=workflow.LEGACY_SHA256)
             self.assertEqual(plan["actual_mode"], "warm_start")
             self.assertEqual(plan["kwargs"]["additional_epochs"], 20)
             self.assertEqual((plan["config"].head_epochs, plan["config"].finetune_epochs), (0, 20))
@@ -383,7 +384,96 @@ class CheckpointTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 workflow.prepare_persistent_run(
                     core, data_dir=DATA_DIR, drive_root=drive, experiment_name="continuation",
-                    requested_mode="resume_best", run_mode="pilot", warm_start_path=legacy)
+                    requested_mode="resume_best", run_mode="pilot", warm_start_path=legacy,
+                    approved_source_sha256=workflow.LEGACY_SHA256)
+
+    def transfer_source(self, config):
+        core._seed_everything(config.seed)
+        model = TinyStochasticModel(pretrained=False)
+        payload = {
+            "format_version": 1, "model_state_dict": copy.deepcopy(model.state_dict()),
+            "config": asdict(config), "best_epoch": 47,
+            "validation_metrics": {"mae_kmh": 0.001},
+            "labels_sha256": self.integrity["labels_sha256"],
+            "preprocessing": core._PREPROCESSING_ID, "architecture": core._ARCHITECTURE_ID,
+            "keypoint_order": ["pivot", "tip"], "speed_range_kmh": [0, 180],
+        }
+        path = self.root / "source_epoch47.pt"
+        torch.save(payload, path)
+        return path, payload
+
+    def transfer_target(self):
+        records, integrity = copy.deepcopy(self.records), copy.deepcopy(self.integrity)
+        # This fixture tests dataset-identity and report plumbing, not image
+        # rotation rendering (which has its own geometric audit).
+        integrity["labels_sha256"] = "a" * 64
+        for index, row in enumerate(records):
+            row["rotation_degrees"] = 0 if index % 2 == 0 else 90
+            row["parent_sample_id"] = "parent_" + row["sample_id"]
+        return patch.object(core, "verify_dataset", side_effect=lambda _: (
+            copy.deepcopy(records), copy.deepcopy(integrity)))
+
+    def test_transfer_recomputes_baseline_and_restores_epoch_zero_exactly(self):
+        config = self.config("transfer", head_epochs=0, finetune_epochs=20)
+        source, payload = self.transfer_source(config)
+        with self.transfer_target():
+            initial = core.train_persistent(config, mode="warm_start_transfer", warm_start_path=source,
+                                            additional_epochs=20, stop_after_epochs=0)
+            checkpoint = self.checkpoint(initial)
+            self.assertEqual(checkpoint["training_state"]["epoch"], 0)
+            self.assertEqual(checkpoint["training_state"]["target_epoch"], 20)
+            self.assertEqual(checkpoint["optimizer_state_dict"]["state"], {})
+            self.assertEqual(initial["resume_metadata"]["source_epoch"], 47)
+            self.assertFalse(initial["resume_metadata"]["optimizer_restored"])
+            self.assertFalse(initial["resume_metadata"]["full_state_restored"])
+            self.assertEqual(checkpoint["identity"]["labels_sha256"], "a" * 64)
+            self.assertNestedEqual(checkpoint["model_state_dict"], payload["model_state_dict"])
+            self.assertNotAlmostEqual(checkpoint["validation_metrics"]["mae_kmh"], 0.001)
+            self.assertEqual(checkpoint["best_state"]["validation_metrics"],
+                             checkpoint["transfer_baseline"]["report"]["metrics"])
+            self.assertEqual(initial["baseline_validation_report"]["training_updates_before_evaluation"], 0)
+            self.assertEqual(set(initial["baseline_validation_report"]["metrics_by_rotation_degrees"]),
+                             {"0", "90"})
+            self.assertTrue(all(row["parent_sample_id"].startswith("parent_")
+                                for row in checkpoint["transfer_baseline"]["rows"]))
+            resumed = core.train_persistent(replace(config, output_dir=str(self.root / "resumed")),
+                                            mode="resume_latest", search_root=self.root / "transfer",
+                                            additional_epochs=99, stop_after_epochs=1)
+            direct = core.train_persistent(replace(config, output_dir=str(self.root / "direct")),
+                                           mode="warm_start_transfer", warm_start_path=source,
+                                           additional_epochs=20, stop_after_epochs=1)
+            self.assertEqual(resumed["target_epoch"], 20)
+            self.assertEqual(resumed["epochs_run"], 1)
+            self.assertRestartEquivalent(self.checkpoint(direct), self.checkpoint(resumed))
+            self.assertNestedEqual(self.checkpoint(initial)["transfer_baseline"],
+                                   self.checkpoint(resumed)["transfer_baseline"])
+
+    def test_changed_dataset_requires_transfer_not_full_state_resume(self):
+        config = self.config("old_data", head_epochs=0, finetune_epochs=20)
+        core.train_persistent(config, stop_after_epochs=1)
+        with self.transfer_target():
+            with self.assertRaises(FileNotFoundError):
+                core.train_persistent(replace(config, output_dir=str(self.root / "wrong_resume")),
+                                      mode="resume_latest", search_root=self.root / "old_data")
+
+    def test_transfer_rejects_incompatible_architecture_preprocessing_and_outputs(self):
+        config = self.config("unused", head_epochs=0, finetune_epochs=20)
+        _, payload = self.transfer_source(config)
+        mismatches = [
+            ("architecture", "different_model"), ("preprocessing", "different_crop"),
+            ("keypoint_order", ["tip", "pivot"]), ("speed_range_kmh", [0, 240]),
+            ("config", {**payload["config"], "input_size": 128}),
+        ]
+        with self.transfer_target():
+            for field, value in mismatches:
+                with self.subTest(field=field):
+                    altered = {**payload, field: value}
+                    path = self.root / ("bad_" + field + ".pt")
+                    torch.save(altered, path)
+                    with self.assertRaises(ValueError):
+                        core.train_persistent(replace(config, output_dir=str(self.root / ("bad_" + field))),
+                                              mode="warm_start_transfer", warm_start_path=path,
+                                              stop_after_epochs=0)
 
 
 if __name__ == "__main__":

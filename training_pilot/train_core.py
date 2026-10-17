@@ -360,6 +360,8 @@ def evaluate_model(model, loader, device):
             record = loader.dataset.records[dataset_index]
             predicted_speed = float(speeds[local])
             row = {"sample_id": record["sample_id"], "group_id": record["group_id"],
+                   "parent_sample_id": record.get("parent_sample_id", record["sample_id"]),
+                   "rotation_degrees": float(record.get("rotation_degrees", 0.0)),
                    "image": record["image"], "dataset_split": record["dataset_split"],
                    "profile": record.get("augmentation", {}).get("photometric", {}).get("profile", "unknown"),
                    "inferred_60_influence": bool(record.get("inferred_60_influence", False)),
@@ -376,6 +378,27 @@ def evaluate_model(model, loader, device):
                     row[f"target_{name}_{axis}"] = float(target[dimension])
             rows.append(row)
     return metrics_from_rows(rows), rows
+
+
+def rotation_metrics_from_rows(rows):
+    """Report added camera rotation in clockwise image degrees, never needle angle.
+
+    Repeated rotations of one parent/pose remain correlated validation examples;
+    per-angle metrics are diagnostics, not independent real-world test results.
+    """
+    angles = sorted({float(row.get("rotation_degrees", 0.0)) for row in rows})
+    by_angle = {
+        f"{angle:g}": metrics_from_rows([row for row in rows
+                                        if float(row.get("rotation_degrees", 0.0)) == angle])
+        for angle in angles
+    }
+    by_group = {}
+    for name, rotated in (("original_zero", False), ("rotated", True)):
+        members = [row for row in rows if (float(row.get("rotation_degrees", 0.0)) != 0.0) == rotated]
+        if members:
+            by_group[name] = metrics_from_rows(members)
+    return {"metrics_by_rotation_degrees": by_angle, "metrics_by_rotation_group": by_group,
+            "rotation_convention": "Additional whole-image rotation, positive clockwise; not needle angle"}
 
 
 def _save_csv(path, rows):
@@ -846,6 +869,27 @@ def _validate_legacy(payload, config, identity):
         raise ValueError("Legacy checkpoint has no finite validation MAE")
 
 
+def _validate_transfer(payload, config):
+    """Authorize a weights-only initialization, not a cross-dataset resume."""
+    if payload.get("format_version") != 1:
+        raise ValueError("warm_start_transfer expects an exported format_version=1 best_model.pt")
+    if payload.get("architecture") != _ARCHITECTURE_ID:
+        raise ValueError("Transfer checkpoint architecture identity does not match")
+    if payload.get("preprocessing") != _PREPROCESSING_ID:
+        raise ValueError("Transfer checkpoint preprocessing does not match")
+    if payload.get("keypoint_order") != ["pivot", "tip"] or payload.get("speed_range_kmh") != [0, 180]:
+        raise ValueError("Transfer checkpoint output definitions do not match")
+    if payload.get("config", {}).get("input_size") != config.input_size:
+        raise ValueError("Transfer checkpoint input_size differs from the new experiment")
+    if type(payload.get("best_epoch")) is not int or payload["best_epoch"] < 0:
+        raise ValueError("Transfer checkpoint has no valid source epoch")
+    source_hash = payload.get("labels_sha256")
+    if not isinstance(source_hash, str) or len(source_hash) != 64:
+        raise ValueError("Transfer checkpoint must identify its source dataset")
+    if not math.isfinite(float(payload.get("validation_metrics", {}).get("mae_kmh", float("nan")))):
+        raise ValueError("Transfer checkpoint has no finite source-validation MAE")
+
+
 def _inference_payload(best, config, integrity, resume_metadata):
     return {
         "format_version": 1, "model_state_dict": best["model_state_dict"],
@@ -870,11 +914,17 @@ def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
     restore a full state, including its fixed target. Only extend_by_epochs adds
     a new budget. Every invocation requires a new/empty branch output directory.
 
+    warm_start_transfer permits a new dataset/subset experiment with matching
+    model/input/output definitions. It copies weights only, starts epoch0 with
+    new optimizer/RNG state, and targets additional_epochs. Source epoch and old
+    validation metrics are provenance; a new-validation baseline is evaluated
+    before any update and preserved for best-model selection and comparison.
+
     Resume is at an epoch boundary. Bitwise reproducibility still depends on the
     device and deterministic kernels; state restoration never claims otherwise.
     stop_after_epochs is a test/interruption hook, not an early-stopping policy.
     """
-    if mode not in {"fresh", "warm_start", "resume_latest", "resume_best"}:
+    if mode not in {"fresh", "warm_start", "warm_start_transfer", "resume_latest", "resume_best"}:
         raise ValueError(f"Unknown training mode: {mode}")
     if config.input_size < 64 or config.input_size % 32:
         raise ValueError("input_size must be >=64 and divisible by 32")
@@ -884,8 +934,8 @@ def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
         raise ValueError("Epoch budgets must be nonnegative")
     if mode == "fresh" and config.head_epochs + config.finetune_epochs < 1:
         raise ValueError("Fresh training needs at least one epoch")
-    if mode == "warm_start" and (warm_start_path is None or additional_epochs < 1):
-        raise ValueError("warm_start requires a legacy checkpoint and positive additional_epochs")
+    if mode in {"warm_start", "warm_start_transfer"} and (warm_start_path is None or additional_epochs < 1):
+        raise ValueError("Warm starts require a weight checkpoint and positive additional_epochs")
     if stop_after_epochs is not None and stop_after_epochs < 0:
         raise ValueError("stop_after_epochs must be nonnegative")
     if mode == "fresh" and stop_after_epochs == 0:
@@ -903,10 +953,13 @@ def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
             raise ValueError("Exact resume requires search_root")
         candidate = find_checkpoint(search_root, mode, identity)
         restored = _load_verified(candidate)
-    legacy = None
+    legacy, transfer = None, None
     if mode == "warm_start":
         legacy = torch.load(warm_start_path, map_location="cpu", weights_only=True)
         _validate_legacy(legacy, config, identity)
+    elif mode == "warm_start_transfer":
+        transfer = torch.load(warm_start_path, map_location="cpu", weights_only=True)
+        _validate_transfer(transfer, config)
     out.mkdir(parents=True, exist_ok=True)
     _json_write(out / "data_integrity.json", integrity)
     _json_write(out / "config.json", asdict(config))
@@ -917,7 +970,7 @@ def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
     model = SpeedometerModel(pretrained=config.pretrained if mode == "fresh" else False).to(device)
     amp_enabled = bool(config.amp and device.type == "cuda")
     scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)
-    best, history, latest_path = None, [], None
+    best, history, latest_path, transfer_baseline = None, [], None, None
     metadata = {"mode": mode, "source_checkpoint_path": None, "source_epoch": 0,
                 "optimizer_restored": False, "full_state_restored": False,
                 "initialization": "ImageNet" if config.pretrained else "random",
@@ -943,10 +996,46 @@ def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
                 "validation_metrics": metrics,
                 "provenance": {"kind": "legacy_baseline", "checkpoint_path": str(warm_start_path),
                                "sha256": metadata["source_sha256"]}}
+    elif transfer is not None:
+        model.load_state_dict(transfer["model_state_dict"], strict=True)
+        source_epoch = int(transfer["best_epoch"])
+        state.update(epoch=0, stage="finetune", target_epoch=int(additional_epochs),
+                     head_budget=0, finetune_budget=int(additional_epochs))
+        metadata.update(
+            source_checkpoint_path=str(Path(warm_start_path)), source_epoch=source_epoch,
+            source_sha256=_sha256(warm_start_path), initialization="transferred trained weights",
+            initial_pretrained=bool(transfer.get("resume_metadata", {}).get(
+                "initial_pretrained", transfer["config"]["pretrained"])),
+            source_labels_sha256=transfer["labels_sha256"],
+            target_labels_sha256=integrity["labels_sha256"],
+            source_validation_metrics=transfer["validation_metrics"],
+            epoch_numbering="New experiment starts at0; source_epoch records prior training",
+            limitation="Weights-only transfer to a new experiment. Optimizer, RNG, history and early-stopping state reset.")
+        print(f"Evaluating source epoch{source_epoch} on the new validation set before any training update...",
+              flush=True)
+        metrics, baseline_rows = evaluate_model(model, val_loader, device)
+        if not math.isfinite(metrics["mae_kmh"]):
+            raise FloatingPointError("Nonfinite transfer baseline validation MAE")
+        baseline_report = {
+            "metrics": metrics, **rotation_metrics_from_rows(baseline_rows),
+            "source_epoch": source_epoch, "source_checkpoint_sha256": metadata["source_sha256"],
+            "source_labels_sha256": transfer["labels_sha256"],
+            "target_labels_sha256": integrity["labels_sha256"],
+            "validation_samples": len(val_records), "training_updates_before_evaluation": 0,
+        }
+        transfer_baseline = {"report": baseline_report, "rows": baseline_rows}
+        state["stage_best"] = metrics["mae_kmh"]
+        best = {"epoch": 0, "model_state_dict": _cpu_tree(model.state_dict()),
+                "validation_metrics": metrics,
+                "provenance": {"kind": "transferred_weights_baseline", "source_epoch": source_epoch,
+                               "checkpoint_path": str(warm_start_path), "sha256": metadata["source_sha256"],
+                               "source_labels_sha256": transfer["labels_sha256"],
+                               "evaluated_labels_sha256": integrity["labels_sha256"]}}
     elif restored is not None:
         model.load_state_dict(restored["model_state_dict"], strict=True)
         state, best, history = dict(restored["training_state"]), restored["best_state"], restored["history"]
         metrics = restored["validation_metrics"]
+        transfer_baseline = restored.get("transfer_baseline")
         metadata.update(source_checkpoint_path=candidate["checkpoint_path"], source_epoch=state["epoch"],
                         source_sha256=candidate["sha256"], optimizer_restored=True, full_state_restored=True,
                         initial_pretrained=restored.get("resume_metadata", {}).get(
@@ -968,6 +1057,9 @@ def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
         val_loader.generator.set_state(restored["loader_generator_states"]["validation"])
         _restore_rng(restored["rng_state"])
     _json_write(out / "resume_metadata.json", metadata)
+    if transfer_baseline is not None:
+        _json_write(out / "baseline_validation_metrics.json", transfer_baseline["report"])
+        _save_csv(out / "baseline_validation_predictions.csv", transfer_baseline["rows"])
     best_path = out / "best_model.pt"
 
     def save_best():
@@ -989,6 +1081,7 @@ def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
             "history": list(history), "training_state": dict(state), "best_state": best,
             "identity": identity, "config": asdict(config), "validation_metrics": metrics,
             "resume_metadata": metadata, "labels_sha256": integrity["labels_sha256"],
+            "transfer_baseline": transfer_baseline,
             "best_epoch": best["epoch"], "torch_version": str(torch.__version__),
         }
         saved = _save_durable(payload, out / filename, kind="full_training_state", identity=identity,
@@ -1001,6 +1094,8 @@ def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
         save_best()  # The parent's best remains available even if this branch never improves.
     if legacy is not None:
         save_epoch("legacy_warm_start_boundary")
+    elif transfer is not None:
+        save_epoch("weights_transfer_baseline_boundary")
     started, epochs_this_call = time.time(), 0
     print(f"{mode}: device={device}; train={len(train_records)}, validation={len(val_records)}; "
           f"epoch {state['epoch']} -> target {state['target_epoch']}", flush=True)
@@ -1093,6 +1188,7 @@ def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
             regions["inferred_60_region" if influenced else "other_regions"] = metrics_from_rows(members)
     report = {
         "metrics": evaluation, "metrics_by_profile": profiles, "metrics_by_speed_bin": bins,
+        **rotation_metrics_from_rows(rows),
         "metrics_by_calibration_region": regions, "best_epoch": best["epoch"],
         "epochs_run": state["epoch"], "epochs_this_call": epochs_this_call,
         "target_epoch": state["target_epoch"], "training_complete": state["training_complete"],
@@ -1101,6 +1197,10 @@ def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
         "training_samples": len(train_records), "validation_samples": len(val_records),
         "labels_sha256": integrity["labels_sha256"], "torch_version": str(torch.__version__),
         "config": asdict(config), "resume_metadata": metadata, "best_provenance": best["provenance"],
+        "baseline_validation_metrics": transfer_baseline["report"]["metrics"] if transfer_baseline else None,
+        "baseline_validation_report": transfer_baseline["report"] if transfer_baseline else None,
+        "baseline_predictions_path": str(out / "baseline_validation_predictions.csv") if transfer_baseline else None,
+        "baseline_metrics_path": str(out / "baseline_validation_metrics.json") if transfer_baseline else None,
         "latest_checkpoint_path": str(latest_path), "checkpoint_path": str(best_path),
         "metrics_path": str(out / "metrics.json"),
         "predictions_path": str(out / "validation_predictions.csv"),

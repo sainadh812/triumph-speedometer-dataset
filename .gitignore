@@ -4,4 +4,5 @@ __pycache__/
 .ipynb_checkpoints/
 speedometer_work/
 bw_dataset_500/
+bw_dataset_rotation_v2/
 training_pilot/checks/
