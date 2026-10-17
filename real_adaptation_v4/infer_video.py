@@ -56,8 +56,29 @@ def _safe_asset(root, relative):
     return path
 
 
+def verify_geometry_runtime(payload):
+    """OpenCV RANSAC behavior must match the version used for model evaluation.
+
+    Identical predicted landmarks produced different acceptance decisions in
+    OpenCV4.6 and4.14. This is a mandatory inference guard, not a warning. NumPy
+    versions are also recorded; the isolated runtime pins the checkpoint pair.
+    """
+    identity = payload.get('identity', {})
+    expected = identity.get('opencv_version')
+    if not isinstance(expected, str) or not expected:
+        raise ValueError('Checkpoint has no recorded OpenCV version; geometry runtime cannot be verified')
+    if cv2.__version__ != expected:
+        raise ValueError(f'OpenCV runtime mismatch: checkpoint={expected}, current={cv2.__version__}. '
+                         'Use the recorded OpenCV version before processing video.')
+    return {'opencv_version': cv2.__version__, 'checkpoint_opencv_version': expected,
+            'opencv_version_matches_checkpoint': True,
+            'numpy_version': np.__version__, 'checkpoint_numpy_version': identity.get('numpy_version'),
+            'numpy_version_matches_checkpoint': np.__version__ == identity.get('numpy_version')}
+
+
 def load_inference_assets(dataset, payload):
     """Load only hash-protected static configuration, never per-image labels."""
+    runtime = verify_geometry_runtime(payload)
     root = Path(dataset).resolve()
     manifest_path = root / 'manifest.json'
     identity = payload['identity']
@@ -108,7 +129,8 @@ def load_inference_assets(dataset, payload):
         raise ValueError('Reconstructed fixed LCD mask differs from training')
     return processor, calibration, {'manifest_sha256': sha256(manifest_path),
         'calibration_sha256': sha256(calibration_path), 'reference_sha256': sha256(reference_path),
-        'preprocessing': config, 'verified_implementation_hashes': identity['implementation_hashes']}
+        'preprocessing': config, 'verified_implementation_hashes': identity['implementation_hashes'],
+        'geometry_runtime': runtime}
 
 
 def probe_video(path):

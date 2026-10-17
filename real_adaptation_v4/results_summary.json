@@ -1,0 +1,268 @@
+{
+  "schema_version": 1,
+  "experiment": "speedometer_day_arc_needle_v4",
+  "run_id": "20261017_155953_221267_c1b59ef0",
+  "status": "training_and_same_recording_video_completed_and_audited",
+  "completed_epoch": 20,
+  "selected_epoch": 17,
+  "device": "Tesla T4",
+  "data": {
+    "training_images": 1600,
+    "validation_images": 400,
+    "source_recordings": 1,
+    "input_size": [
+      512,
+      512
+    ],
+    "color": "grayscale",
+    "lcd_masked": true,
+    "landmark_count": 12,
+    "landmark_supervision": "amodal_in_frame_landmark_availability",
+    "dataset_manifest_sha256": "fb31f0413b76ba487092d5c2d39a28db9f851d07afcad3c05778a2abfc9bdc62",
+    "scope": "Synthetic development validation from separate source plates of the same recording; not an independent real-camera test."
+  },
+  "baseline_description": "V4 immediately after transferring V3 epoch-8 needle weights, with its new tick branch still untrained.",
+  "before_metrics": {
+    "count": 400,
+    "combined_loss": 14.351062183380128,
+    "needle_mean_error_px": 5.211061588877145,
+    "needle_pivot_mean_error_px": 4.29056567686315,
+    "needle_tip_mean_error_px": 6.13155750089114,
+    "needle_tip_p95_error_px": 14.129060693394608,
+    "per_landmark_mean_error_px": {
+      "pivot": 4.29056567686315,
+      "needle_tip": 6.13155750089114,
+      "tick_0": 139.77179290941797,
+      "tick_20": 119.20621662725142,
+      "tick_40": 99.24554995699167,
+      "tick_60": 73.67287365245095,
+      "tick_80": 85.27381839520858,
+      "tick_100": 78.75046693933997,
+      "tick_120": 86.35518304177101,
+      "tick_140": 91.6692157815511,
+      "tick_160": 92.98413237636368,
+      "tick_180": 110.28959957551643
+    },
+    "tick_mean_error_px": 97.72188492558625,
+    "tick_p95_error_px": 146.13931354994412,
+    "primary_speed": {
+      "accepted": 0,
+      "rejected": 400,
+      "coverage_percent": 0.0,
+      "eligible_count": 400,
+      "within_2_kmh_all_eligible_inputs_percent": 0.0,
+      "accepted_only": {
+        "count": 0,
+        "mae_kmh": null,
+        "rmse_kmh": null,
+        "p95_kmh": null,
+        "within_2_kmh_percent": null,
+        "within_5_kmh_percent": null
+      },
+      "rejection_reasons": {
+        "insufficient_tick_inliers": 40,
+        "duplicate_or_unresolved_tick_points": 358,
+        "degenerate_or_poorly_spread_tick_points": 2
+      }
+    },
+    "uses_target_transform_for_speed": false,
+    "uses_target_ticks_for_speed": false,
+    "limitation": "Same-video synthetic development check; not independent real accuracy",
+    "selection_score": 122.9329465144634
+  },
+  "selected_epoch_metrics": {
+    "count": 400,
+    "combined_loss": 7.357924842834473,
+    "needle_mean_error_px": 1.043880379658602,
+    "needle_pivot_mean_error_px": 0.639333514361744,
+    "needle_tip_mean_error_px": 1.4484272449554603,
+    "needle_tip_p95_error_px": 3.1353472091808525,
+    "per_landmark_mean_error_px": {
+      "pivot": 0.639333514361744,
+      "needle_tip": 1.4484272449554603,
+      "tick_0": 2.259680105137653,
+      "tick_20": 1.4306670925876477,
+      "tick_40": 1.4711723190278547,
+      "tick_60": 1.4010937220534316,
+      "tick_80": 0.8625892294154308,
+      "tick_100": 0.8015041435912796,
+      "tick_120": 0.743040213424601,
+      "tick_140": 0.7602926843466199,
+      "tick_160": 0.7574188936452901,
+      "tick_180": 0.794381197504843
+    },
+    "tick_mean_error_px": 1.128183960073465,
+    "tick_p95_error_px": 2.91081118037657,
+    "primary_speed": {
+      "accepted": 400,
+      "rejected": 0,
+      "coverage_percent": 100.0,
+      "eligible_count": 400,
+      "within_2_kmh_all_eligible_inputs_percent": 99.25,
+      "accepted_only": {
+        "count": 400,
+        "mae_kmh": 0.5381923291667868,
+        "rmse_kmh": 0.6983456559020192,
+        "p95_kmh": 1.4134469133620717,
+        "within_2_kmh_percent": 99.25,
+        "within_5_kmh_percent": 100.0
+      },
+      "rejection_reasons": {}
+    },
+    "uses_target_transform_for_speed": false,
+    "uses_target_ticks_for_speed": false,
+    "limitation": "Same-video synthetic development check; not independent real accuracy",
+    "selection_score": 2.322064339732066
+  },
+  "validation_accounting": {
+    "evaluated": 400,
+    "accepted": 400,
+    "rejected": 0,
+    "within_2_kmh": 397,
+    "outside_2_kmh": 3,
+    "all_input_within_2_kmh_percent": 99.25,
+    "endpoint_clamped_count": 2
+  },
+  "selection": "Minimum mean needle pixel error + mean tick pixel error + 20*(1 - all-input fraction within 2 km/h), including epoch 0.",
+  "verification": {
+    "results_archive_sha256": "6bef7bfcb18255b14be5994e81b04c19c87af94491627d86154c225977c1b15f",
+    "selected_weights_sha256": "ed7f27c44e89f4caebefddc79fb1481786efc2e6fc3ddd103f7bcb3b2625857d",
+    "model_tensor_count": 274,
+    "checkpoint_dataset_preprocessing_and_code_identity_verified": true,
+    "all_400_prediction_records_and_geometry_readings_replayed": true,
+    "matched_geometry_runtime": {
+      "opencv": "4.14.0",
+      "numpy": "2.1.3"
+    },
+    "no_new_forward_pass_of_all_validation_images_claimed": true,
+    "weights_published": false
+  },
+  "drive_checkpoints": {
+    "remote_audit_status": "passed",
+    "epoch_checkpoint_count": 21,
+    "epochs": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "every_epoch_file_marker_and_size_checked": true,
+    "all_epoch_hashes_recomputed_after_training": false,
+    "best_epoch_hash_and_full_resumable_state_verified": 17,
+    "latest_epoch_hash_and_full_resumable_state_verified": 20,
+    "best_and_latest_optimizer_state_entries": [
+      72,
+      72
+    ],
+    "inference_export_matches_best_full_checkpoint": true,
+    "compact_inference_export_contains_optimizer_state": false,
+    "full_state_files_downloaded_for_local_audit": false
+  },
+  "recorded_training_runtime": {
+    "opencv_version": "4.14.0",
+    "numpy_version": "2.1.3",
+    "torch_version": "2.11.0+cu130",
+    "torchvision_version": "0.26.0+cu130",
+    "pillow_version": "11.3.0"
+  },
+  "runtime_compatibility": {
+    "inference_package_pin": "opencv-python-headless==4.14.0.94",
+    "tested_numpy_pin": "numpy==2.1.3",
+    "mismatched_local_opencv_4_6_geometry_replay": {
+      "accepted": 344,
+      "rejected": 56,
+      "all_input_within_2_kmh_percent": 85.25
+    },
+    "explanation": "OpenCV 4.6.0 changed homography/inlier decisions on the same stored predictions. Matching OpenCV 4.14.0 and NumPy 2.1.3 reproduced all 400 Colab readings without weakening geometry gates."
+  },
+  "real_video_evaluation": {
+    "status": "completed_and_decoded",
+    "scope": "Full development recording used to create synthetic training source plates; not an independent test.",
+    "selected_epoch": 17,
+    "source_frames": 600,
+    "distinct_source_frames_used": 600,
+    "source_frames_omitted": 0,
+    "output_frames": 602,
+    "decoded_output_frames": 602,
+    "model_inputs": 602,
+    "repeated_timeline_frames": 2,
+    "accepted_distinct_source_frames": 600,
+    "rejected_distinct_source_frames": 0,
+    "accepted_output_readings": 602,
+    "rejected_output_readings": 0,
+    "reading_coverage_percent": 100.0,
+    "reading_coverage_is_accuracy": false,
+    "rejection_reasons": {},
+    "endpoint_clamps": 0,
+    "output_fps": 30.0,
+    "output_size": [
+      1024,
+      720
+    ],
+    "source_duration_seconds": 20.078333,
+    "output_duration_seconds": 20.066666666666666,
+    "duration_difference_seconds": -0.011666333333334222,
+    "sampling": "30FPS nearest source presentation timestamp; every selected valid frame gets inference",
+    "speed_smoothing": false,
+    "stale_mask_or_speed_fallback": false,
+    "uses_target_labels_or_transforms": false,
+    "runtime": {
+      "opencv_version": "4.14.0",
+      "checkpoint_opencv_version": "4.14.0",
+      "opencv_version_matches_checkpoint": true,
+      "numpy_version": "2.1.3",
+      "checkpoint_numpy_version": "2.1.3",
+      "numpy_version_matches_checkpoint": true
+    },
+    "processing": {
+      "device": "cpu",
+      "batch_size": 8,
+      "seconds": 232.57441220013425,
+      "offline_output_frames_per_second": 2.5884188819618243,
+      "timing_scope": "Includes source decoding, preprocessing, model inference and overlay writing; excludes final H.264 encoding.",
+      "live_30_fps_processing_demonstrated": false
+    },
+    "approximate_manual_reference_comparison": {
+      "frame_count": 8,
+      "matched_frames": 8,
+      "accepted_speed_comparisons": 8,
+      "rejected_matched_frames": 0,
+      "deduplication": "First output occurrence per source frame; repeated timeline frames do not increase comparison count.",
+      "mean_pivot_difference_from_visual_px": 2.5205302706038832,
+      "mean_tip_difference_from_visual_px": 2.802937704064757,
+      "mean_absolute_speed_difference_from_visual_kmh": 0.4877789982498877,
+      "mean_signed_speed_difference_from_visual_kmh": -0.13456943457246684,
+      "manual_pivot_uncertainty_px": 2.5,
+      "manual_tip_uncertainty_px_range": [
+        1.5,
+        2.0
+      ],
+      "uncertainty_kind": "Subjective visual estimates, not measured bounds or confidence intervals; frozen tick calibration is also approximate.",
+      "scope": "Eight annotations prepared before inference from this same development recording, not precise ground truth or independent accuracy.",
+      "accuracy_percentage_reported": false
+    },
+    "independent_real_world_accuracy_established": false
+  },
+  "limitations": [
+    "Validation samples share one recording with the training source plates.",
+    "Rendered speed labels depend on a manually reviewed calibration with approximate pixel uncertainty.",
+    "99.25% refers only to this synthetic development validation and is not a real-world accuracy claim."
+  ]
+}

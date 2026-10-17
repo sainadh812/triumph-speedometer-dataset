@@ -4,9 +4,9 @@ from pathlib import Path
 
 cells = []
 def md(text):
-    cells.append({'cell_type': 'markdown', 'metadata': {}, 'source': text.strip().splitlines(True)})
+    cells.append({'cell_type': 'markdown', 'id': f'v4-cell-{len(cells):03d}', 'metadata': {}, 'source': text.strip().splitlines(True)})
 def code(text):
-    cells.append({'cell_type': 'code', 'metadata': {}, 'source': text.strip().splitlines(True), 'execution_count': None, 'outputs': []})
+    cells.append({'cell_type': 'code', 'id': f'v4-cell-{len(cells):03d}', 'metadata': {}, 'source': text.strip().splitlines(True), 'execution_count': None, 'outputs': []})
 
 md('''# Triumph V4: learn the needle and the speed scale together
 
@@ -28,13 +28,49 @@ CODE_COMMIT = "5d8093de966eacb27ace59c48878104413ae1f16"
 DATA_MANIFEST_SHA256 = "8546b2a6f73bf3ec5898a90800b6d102f79f9aa82b3eb79d1f2c62a4f3dd83a4"
 DATA_MANIFEST_FILENAME = "data_download_manifest.json"
 SOURCE_SHA256 = "8dcfa269848bac5a46c8ff39d14df4d3470e67905085fb0a662ee45b9bc99d10"
+REQUIRED_NUMPY_VERSION = "2.1.3"
+REQUIRED_OPENCV_VERSION = "4.14.0"
+NUMPY_REQUIREMENT = "numpy==2.1.3"
+OPENCV_REQUIREMENT = "opencv-python-headless==4.14.0.94"
 ''')
-md('''## 1. GPU and Google Drive
+md('''## 1. Matching numeric libraries, GPU and Google Drive
+The decoder was evaluated with **OpenCV 4.14.0 and NumPy 2.1.3**. Older OpenCV versions can make different RANSAC acceptance decisions for identical predicted points. This cell installs the exact matching packages with `--no-deps`, preserving Torch and other packages. If a different version is already loaded, it installs the matching files and asks you to restart the runtime before training. The checkpoint identity also checks the other recorded library versions when resuming.
+
 `transfer` creates the named experiment once. Select `resume_latest` after an interruption, or `resume_best` to continue from the best completed epoch with its matching optimizer. Resume restores the original settings and epoch target. `fresh` creates a separately named experiment with no previous weights. No mode silently falls back to fresh training.''')
-code('''import os,sys,json,re,hashlib,subprocess,uuid,zipfile,urllib.request
+code('''import os,sys,json,re,hashlib,subprocess,uuid,zipfile,urllib.request,importlib
 from pathlib import Path
 from dataclasses import asdict
-import torch,torchvision,cv2,numpy as np
+
+def require_geometry_libraries():
+    expected = {'numpy': REQUIRED_NUMPY_VERSION, 'cv2': REQUIRED_OPENCV_VERSION}
+    loaded_mismatch = [name for name,version in expected.items()
+                       if name in sys.modules and getattr(sys.modules[name],'__version__',None)!=version]
+    probe_code = "import json,numpy,cv2; print(json.dumps({'numpy':numpy.__version__,'cv2':cv2.__version__}))"
+    def disk_versions():
+        result = subprocess.run([sys.executable,'-c',probe_code],capture_output=True,text=True)
+        if result.returncode:
+            return {}
+        try:
+            return json.loads(result.stdout.strip().splitlines()[-1])
+        except (ValueError,IndexError):
+            return {}
+    installed = False
+    if disk_versions()!=expected:
+        subprocess.run([sys.executable,'-m','pip','install','--no-deps','--upgrade',
+                        NUMPY_REQUIREMENT,OPENCV_REQUIREMENT],check=True)
+        installed = True
+        if disk_versions()!=expected:
+            raise RuntimeError('Matching NumPy/OpenCV installation could not be verified. Training has not started.')
+    if loaded_mismatch:
+        prefix = 'Installed matching library files. ' if installed else 'Matching library files are already on disk. '
+        raise RuntimeError(prefix+'Restart the runtime, then Run all to unload the previous '+', '.join(loaded_mismatch)+'. Training has not started.')
+    modules = [importlib.import_module(name) for name in ('numpy','cv2')]
+    if {name:module.__version__ for name,module in zip(('numpy','cv2'),modules)}!=expected:
+        raise RuntimeError('Imported numeric libraries do not match the recorded training versions. Restart the runtime.')
+    return modules
+
+np,cv2 = require_geometry_libraries()
+import torch,torchvision
 if not torch.cuda.is_available():
     raise RuntimeError("Choose Runtime > Change runtime type > T4 GPU, reconnect and Run all. Training has not started.")
 from google.colab import drive
@@ -49,6 +85,7 @@ probe.write_text('ok'); assert probe.read_text()=='ok'; probe.unlink()
 WORK=Path('/content/speedometer_joint_landmarks_v4_work')
 WORK.mkdir(parents=True,exist_ok=True)
 print('GPU:',torch.cuda.get_device_name(0))
+print('Geometry libraries: NumPy',np.__version__,'| OpenCV',cv2.__version__)
 ''')
 md('''## 2. Load pinned code and verified data
 The manifest verifies every image and label. The mask and camera-stabilization metadata must match this experiment. Data are stored in the temporary runtime; full checkpoints are stored in Drive.''')
@@ -126,7 +163,11 @@ REPORT=train(CONFIG,mode=TRAIN_MODE,source_checkpoint=SOURCE_CHECKPOINT if TRAIN
              search_root=EXPERIMENT/'runs' if TRAIN_MODE.startswith('resume_') else None)
 print(json.dumps(REPORT,indent=2))
 ''')
-md('''## 5. Review and download
+md('''## 5. Verify the Drive checkpoints
+This check inventories compatible epoch files across resumed runs, reports missing files, and fully validates the selected best and latest checkpoints. It also checks that exported best weights exactly match the selected resumable checkpoint. The audit does not recompute every historical checkpoint's hash.''')
+code(Path(__file__).with_name('colab_checkpoint_audit.py').read_text(encoding='utf-8').rsplit('from google.colab import files', 1)[0])
+
+md('''## 6. Review and download
 Every epoch's resumable state remains in Drive. The compact ZIP contains the selected inference weights, checksum marker, metrics, history and predictions. It does not replace the full-state checkpoints needed to resume training.''')
 code('''RUN=Path(REPORT['run_dir'])
 history=json.loads((RUN/'history.json').read_text())
@@ -143,13 +184,18 @@ if history:
 RESULT_ZIP=WORK/(RUN.name+'_v4_results.zip')
 include=['best_model.pt','best_model.complete.json','training_report.json','history.json',
          'before_validation_metrics.json','after_validation_metrics.json','after_validation_predictions.json',
-         'dataset_integrity.json','training_history.png','best_checkpoint.json','latest_checkpoint.json']
+         'dataset_integrity.json','training_history.png','best_checkpoint.json','latest_checkpoint.json','drive_checkpoint_audit.json']
 with zipfile.ZipFile(RESULT_ZIP,'w',compression=zipfile.ZIP_DEFLATED) as archive:
     for name in include:
         path=RUN/name
         if path.is_file(): archive.write(path,name)
 print('Best epoch:',REPORT['best_epoch'],'| Results:',RESULT_ZIP,'| SHA256:',_sha(RESULT_ZIP))
 print('Drive run:',RUN)
+import shutil
+DRIVE_RESULT_ZIP=RUN/RESULT_ZIP.name
+shutil.copy2(RESULT_ZIP,DRIVE_RESULT_ZIP)
+assert _sha(DRIVE_RESULT_ZIP)==_sha(RESULT_ZIP)
+print('Verified Drive results archive:',DRIVE_RESULT_ZIP)
 if DOWNLOAD_RESULTS:
     from google.colab import files
     files.download(str(RESULT_ZIP))
@@ -159,5 +205,5 @@ notebook = {'cells': cells, 'metadata': {'accelerator': 'GPU', 'colab': {'proven
     'kernelspec': {'display_name': 'Python 3', 'name': 'python3'}, 'language_info': {'name': 'python'}},
     'nbformat': 4, 'nbformat_minor': 5}
 target = Path(__file__).with_name('Speedometer_Joint_Landmarks_V4_Colab.ipynb')
-target.write_text(json.dumps(notebook, indent=1), encoding='utf-8')
+target.write_text(json.dumps(notebook, indent=1)+'\n', encoding='utf-8', newline='\n')
 print(target)

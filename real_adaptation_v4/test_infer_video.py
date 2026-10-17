@@ -4,11 +4,13 @@ import sys
 import unittest
 
 import numpy as np
+import cv2
 import torch
 
 PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT))
-from real_adaptation_v4.infer_video import build_timeline, predict_items, row_from_item, render, BOARD_SIZE
+from real_adaptation_v4.infer_video import (build_timeline, predict_items, row_from_item,
+    render, BOARD_SIZE, load_inference_assets, verify_geometry_runtime)
 from real_adaptation_v4.test_geometry import CAL, landmarks
 
 
@@ -46,6 +48,21 @@ def item(valid=True, index=0):
 
 
 class VideoSmokeTests(unittest.TestCase):
+    def test_opencv_mismatch_fails_before_loading_dataset(self):
+        # No manifest/model files are present: a version failure must happen
+        # before static assets are read or any video frame can be processed.
+        payload = {'identity': {'opencv_version': '0.0.0-deliberate-mismatch'}}
+        with self.assertRaisesRegex(ValueError, 'OpenCV runtime mismatch'):
+            load_inference_assets(PROJECT / 'deliberately_missing_fixture_dataset', payload)
+
+    def test_runtime_identity_required_and_matching_version_reported(self):
+        with self.assertRaisesRegex(ValueError, 'no recorded OpenCV version'):
+            verify_geometry_runtime({'identity': {}})
+        report = verify_geometry_runtime({'identity': {'opencv_version': cv2.__version__,
+                                                       'numpy_version': np.__version__}})
+        self.assertTrue(report['opencv_version_matches_checkpoint'])
+        self.assertTrue(report['numpy_version_matches_checkpoint'])
+
     def test_timestamp_sampling_preserves_duration_with_explicit_duplicates(self):
         timestamps = np.array([0., .04, .08, .12, .18])
         indices, times = build_timeline(timestamps, .22)

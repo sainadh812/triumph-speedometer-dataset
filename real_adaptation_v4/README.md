@@ -32,6 +32,10 @@ Geometric checks reject inconsistent tick layouts, insufficient support, unavail
 
 Open `Speedometer_Joint_Landmarks_V4_Colab.ipynb`, select a T4 GPU, connect Google Drive and run all cells. The published notebook pins an exact code commit and dataset-download manifest. It verifies each archive part, joins the parts, verifies the full archive and safely extracts it before checking the dataset.
 
+The recorded Colab runtime used **OpenCV 4.14.0, NumPy 2.1.3, PyTorch 2.11.0+cu130, TorchVision 0.26.0+cu130 and Pillow 11.3.0**. The notebook verifies the exact OpenCV/NumPy versions before importing the frozen training implementation. When needed, it installs `opencv-python-headless==4.14.0.94` and `numpy==2.1.3` with `--no-deps`, preserving other installed packages. If mismatched libraries are already loaded, restart the runtime when prompted and run all cells again. Resume additionally requires the checkpoint's other recorded runtime and configuration values; it never substitutes a fresh run.
+
+This version check matters: OpenCV 4.6.0 and 4.14.0 produced different RANSAC acceptance decisions from the same stored predicted landmarks. Matching model weights and source code alone does not reproduce speed-decoder behavior.
+
 The default experiment is `speedometer_day_arc_needle_v4`, with batch size 8 and a maximum of 20 epochs. The first two epochs train the new tick decoder and landmark-availability head. Later epochs gently fine-tune the needle decoder and final four encoder blocks. Early stopping uses six epochs without meaningful validation improvement. The new architecture starts a new optimizer while transferring the verified V3 needle weights.
 
 | Mode | Behavior |
@@ -59,3 +63,27 @@ python -m unittest real_adaptation_v4.test_training real_adaptation_v4.test_geom
 ```
 
 The private-checkpoint transfer test is skipped when the verified V3 checkpoint is unavailable. The public dataset and fresh mode can be used without those private weights.
+
+## Real-video inference
+
+Use an isolated Python environment with working PyTorch/TorchVision and the matching numerical libraries. Install these into that activated environment, then restart any already-running notebook kernel:
+
+```bash
+python -m pip install --no-deps numpy==2.1.3 opencv-python-headless==4.14.0.94
+```
+
+Keep the private `best_model.pt` together with its `best_model.complete.json` marker. Use the verified V4 dataset and the unchanged frozen implementation files. FFmpeg and FFprobe must be available on PATH. From the repository root:
+
+```bash
+python -m real_adaptation_v4.infer_video --checkpoint /path/to/best_model.pt --dataset /path/to/dataset2000 --video /path/to/input.mp4 --output /path/to/predictions.mp4 --run-dir /path/to/new_inference_run
+```
+
+Inference checks OpenCV against the version recorded in the checkpoint before processing video. It also verifies model, dataset, calibration, preprocessing and implementation hashes. The output is a 30 FPS sampling/playback timeline, not a promise of live 30 FPS processing. Predicted landmarks, rejected readings and per-frame results remain visible for inspection.
+
+Optional visual-reference comparison requires explicit private annotations:
+
+```bash
+python -m real_adaptation_v4.compare_real_reference --predictions /path/to/new_inference_run/predictions.jsonl --reference /path/to/visual_reference.json
+```
+
+Approximate same-recording visual labels are a development diagnostic, not independent accuracy ground truth. Original videos, manual source-frame annotations and trained weights are not included in this repository update.
