@@ -1,0 +1,109 @@
+{
+  "audit_status": "passed",
+  "model_task": "Real-dashboard needle adaptation V3",
+  "best_epoch": 8,
+  "latest_epoch": 25,
+  "target_epoch": 25,
+  "comparisons": {
+    "validation": {
+      "before": {
+        "sample_count": 100,
+        "needle_pivot_mean_error_px": 18.156325305718525,
+        "needle_tip_mean_error_px": 115.84201145954134,
+        "needle_tip_p95_error_px": 256.9155235268335,
+        "geometry_accepted_count": 21,
+        "geometry_rejected_count": 79,
+        "coverage_percent": 21.0,
+        "success_within_2_kmh_all_eligible": {
+          "success_count": 2,
+          "eligible_count": 100,
+          "excluded_uncertain_speed_label_count": 0,
+          "fraction": 0.02,
+          "percent": 2.0,
+          "rejected_readings_count_as_failures": true
+        },
+        "accepted_only_speed_mae_kmh": 51.19726993168073,
+        "direct_head_speed_mae_kmh": 39.40401125030518,
+        "endpoint_clamped_count": 0,
+        "rejection_reasons": {
+          "pivot_inconsistent_with_reference": 72,
+          "needle_outside_calibrated_arc": 7
+        }
+      },
+      "after": {
+        "sample_count": 100,
+        "needle_pivot_mean_error_px": 2.0052557356052128,
+        "needle_tip_mean_error_px": 1.716808120408119,
+        "needle_tip_p95_error_px": 3.51594097075447,
+        "geometry_accepted_count": 100,
+        "geometry_rejected_count": 0,
+        "coverage_percent": 100.0,
+        "success_within_2_kmh_all_eligible": {
+          "success_count": 100,
+          "eligible_count": 100,
+          "excluded_uncertain_speed_label_count": 0,
+          "fraction": 1.0,
+          "percent": 100.0,
+          "rejected_readings_count_as_failures": true
+        },
+        "accepted_only_speed_mae_kmh": 0.5730042671771117,
+        "direct_head_speed_mae_kmh": 6.2714003644943235,
+        "endpoint_clamped_count": 1,
+        "rejection_reasons": {}
+      }
+    },
+    "real_diagnostic": {
+      "before": {
+        "sample_count": 9,
+        "needle_pivot_mean_error_px": 23.560049680488476,
+        "needle_tip_mean_error_px": 46.62476589622091,
+        "needle_tip_p95_error_px": 118.92266476327427,
+        "geometry_accepted_count": 3,
+        "geometry_rejected_count": 6,
+        "coverage_percent": 33.333333333333336,
+        "success_within_2_kmh_all_eligible": {
+          "success_count": 0,
+          "eligible_count": 8,
+          "excluded_uncertain_speed_label_count": 1,
+          "fraction": 0.0,
+          "percent": 0.0,
+          "rejected_readings_count_as_failures": true
+        },
+        "accepted_only_speed_mae_kmh": 8.089368720310821,
+        "direct_head_speed_mae_kmh": 52.44973741618995,
+        "endpoint_clamped_count": 0,
+        "rejection_reasons": {
+          "pivot_inconsistent_with_reference": 5,
+          "inliers_residual_or_fixed_camera_plausibility_gate": 1
+        }
+      },
+      "after": {
+        "sample_count": 9,
+        "needle_pivot_mean_error_px": 1.9086019803586711,
+        "needle_tip_mean_error_px": 5.017936474665944,
+        "needle_tip_p95_error_px": 9.176803918755645,
+        "geometry_accepted_count": 8,
+        "geometry_rejected_count": 1,
+        "coverage_percent": 88.88888888888889,
+        "success_within_2_kmh_all_eligible": {
+          "success_count": 7,
+          "eligible_count": 8,
+          "excluded_uncertain_speed_label_count": 1,
+          "fraction": 0.875,
+          "percent": 87.5,
+          "rejected_readings_count_as_failures": true
+        },
+        "accepted_only_speed_mae_kmh": 0.38630217838953473,
+        "direct_head_speed_mae_kmh": 15.727481140214168,
+        "endpoint_clamped_count": 3,
+        "rejection_reasons": {
+          "inliers_residual_or_fixed_camera_plausibility_gate": 1
+        }
+      }
+    }
+  },
+  "measurement_scope": "Same-recording development checks: synthetic base-plate holdout shares repair donors; real frames come from the same video. No independent real-world test.",
+  "label_limit": "Real labels and calibration are manual estimates of indicated needle speed, not measured road speed.",
+  "endpoint_policy": "Fixed 2 km/h calibration tolerance at 0/180 km/h; clamp counts are disclosed. This policy is not a neural-model improvement.",
+  "privacy": "Aggregate metrics only; no paths, images, weights or individual-frame records."
+}

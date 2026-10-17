@@ -36,6 +36,22 @@ Every completed epoch is saved to a new Drive experiment with full model, optimi
 
 A missing or incompatible checkpoint does not silently start over. Old experiments remain intact. Training weights and full checkpoints stay private.
 
+## Completed pilot: 17 October 2026
+
+The Colab T4 run completed all 25 epochs and selected epoch 8 using synthetic validation only. Every completed epoch and the best inference model were saved privately to Drive. The downloaded compact export passed archive/checkpoint checksum, provenance, metric-denominator and best-selection checks; one real-frame CPU inference replay also passed.
+
+| Development measure | Starting weights | Selected best |
+| --- | ---: | ---: |
+| Synthetic validation: within ±2 km/h, rejections count as failures | 2/100 | 100/100 |
+| Synthetic validation: mean needle-tip error at 512×512 | 115.84 px | 1.72 px |
+| Same-video real diagnostics: within ±2 km/h, rejections count as failures | 0/8 | 7/8 |
+| Same-video real diagnostics: mean needle-tip error | 46.62 px | 5.02 px |
+| Real readings accepted, including the uncertain-label frame | 3/9 | 8/9 |
+
+The remaining rejection is a dark frame with insufficient dial-registration feature matches, even though its needle prediction improved. One glare-obscured real frame is excluded from precise speed/keypoint metrics because its manual reference is uncertain. Three accepted real readings use the declared endpoint clamp. The seven accepted, labeled real readings have 0.39 km/h mean absolute indicated-speed error; this accepted-only figure excludes the rejection and is not an all-input accuracy score.
+
+The auxiliary direct-speed head remains weak (15.73 km/h real-frame mean absolute error). Use the predicted needle plus calibrated geometry as the primary output. These nine diagnostic frames are a small same-recording development check; this run does not establish 98% performance on unseen videos. See [aggregate_results.json](aggregate_results.json) for exact denominators and before/after values.
+
 ## Limits and provenance
 
 The user approved the 20-image visual preview before expansion. One ImageGen edit assisted removal of the old needle in source preparation; generation of these 500 variants uses OpenCV/NumPy and makes no ImageGen calls. The generator and rendering helpers are included for inspection; rerunning source preparation requires the private reviewed source assets, which are intentionally not published.
