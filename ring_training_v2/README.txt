@@ -7,6 +7,43 @@ The notebook downloads the public dataset and verifies its checksum.
 The owner's default transfer mode reads private Drive checkpoints;
 other users should select fresh and a new experiment name.
 
+Completed experiment (2026-10-17)
+---------------------------------
+All 40 epochs completed. Validation selected epoch 34; the final test was
+not used for checkpoint selection. The test has 100 images from 50 paired
+pose families. The 98% within +/-2 km/h target was NOT met.
+
+Metric                              Previous val     V2 val       V2 test
+Geometry within +/-2, all inputs       0/100          89/100       81/100
+Accepted geometric readings            0/100          90/100       84/100
+Geometry MAE, accepted only             unavailable    0.522 km/h   0.600 km/h
+Visible tick mean error                 102.23 px      1.38 px      1.34 px
+Arc IoU                                 0.697          0.924        0.923
+Visibility balanced accuracy            50.00%         90.82%       81.24%
+Direct speed within +/-2                19/100          31/100       28/100
+
+Test outcomes: 81 within tolerance, 3 accepted outside tolerance, 16 rejected.
+The 0.600 km/h geometric MAE excludes the 16 rejected test images. The direct
+speed head reached only 28/100 within tolerance. All data share one source;
+these figures do not establish real-camera or live-video accuracy.
+
+The comparison starts from the previous arc model. V2 uses its new tick decoder
+and the separate frozen epoch-19 needle branch; needle improvement includes
+that branch replacement. Visibility threshold 0.5 was fixed before testing.
+
+An independent archive audit verified all 40 history epochs, best epoch 34,
+final-test reports and all 258 frozen needle tensors exactly against epoch 19.
+Drive checks confirmed 41 completion markers, including epoch zero, with
+matching checkpoint sizes. Full optimizer states are absent from the compact
+results archive. Its predicted JSON does not contain masks needed to recompute
+aggregate arc IoU independently. Weights and private paths remain unpublished.
+
+Public exact results and comparison chart:
+../results/arc_ticks_augmented_v2/results_summary.json
+../results/arc_ticks_augmented_v2/synthetic_comparison.png
+../results/arc_ticks_augmented_v2/tick_learning.png
+../results/arc_ticks_augmented_v2/test_predictions.png (20 inspection examples)
+
 Dataset
 -------
 700 grayscale images, 512 x 512: 500 train / 100 validation / 100 test.

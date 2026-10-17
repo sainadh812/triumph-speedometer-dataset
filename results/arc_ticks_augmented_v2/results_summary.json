@@ -1,0 +1,254 @@
+{
+  "experiment": "augmented_arc_ticks_v2",
+  "completed_epochs": 40,
+  "best_epoch": 34,
+  "checkpoint_count_verified": 41,
+  "input_size": [
+    512,
+    512
+  ],
+  "split_counts": {
+    "train": 500,
+    "validation": 100,
+    "test": 100
+  },
+  "source_commit": "5ed88822089fae0ecf3bb268ee9a5ca685915468",
+  "dataset_zip_sha256": "0cac796ac787defbbbc194cd7bb918b4835129568cbdf2d453648b9c5585b06d",
+  "result_archive_sha256": "59a2aae0e9a9b136b89a8c44cf91022e8be754f30a8224f3e7d1786026c83008",
+  "previous_validation": {
+    "scope": "synthetic_validation",
+    "count": 100,
+    "direct_speed": {
+      "count": 100,
+      "mae_kmh": 6.126997673988342,
+      "rmse_kmh": 7.77276626239808,
+      "p95_kmh": 17.44797610473633,
+      "within_2_kmh_percent": 19.0,
+      "within_5_kmh_percent": 51.0
+    },
+    "geometric_speed": {
+      "accepted": 0,
+      "rejected": 100,
+      "coverage_percent": 0.0,
+      "within_2_kmh_all_inputs_percent": 0.0,
+      "accepted_only": {
+        "count": 0,
+        "mae_kmh": null,
+        "rmse_kmh": null,
+        "p95_kmh": null,
+        "within_2_kmh_percent": null,
+        "within_5_kmh_percent": null
+      },
+      "rejection_reasons": {
+        "inconsistent_tick_reprojection": 37,
+        "projective_horizon_crosses_observed_dial": 62,
+        "mirrored_or_reversed_tick_correspondences": 1
+      }
+    },
+    "landmarks": {
+      "visible_tick_mean_error_px": 102.22546785993775,
+      "visible_tick_p95_error_px": 150.80384491664472,
+      "needle_pivot_mean_error_px": 1.5863641443469307,
+      "needle_tip_mean_error_px": 16.969976681082507,
+      "tick_visibility_accuracy_percent": 89.0,
+      "visibility_confusion_counts": {
+        "visible_detected": 534,
+        "visible_missed": 0,
+        "occluded_detected": 0,
+        "occluded_called_visible": 66
+      },
+      "occluded_tick_recall_percent": 0.0,
+      "visible_tick_recall_percent": 100.0,
+      "visibility_balanced_accuracy_percent": 50.0
+    },
+    "arc": {
+      "valid_pixel_iou": 0.6968568904495475,
+      "valid_pixel_dice": 0.821350220365289
+    },
+    "visibility_threshold": 0.5,
+    "inference_uses_ground_truth_visibility": false,
+    "inference_uses_oracle_camera_transform": false,
+    "limitation": "All samples derive from one reconstructed source. Pose families are split before rendering; these are not independent real-camera tests.",
+    "dataset_splits": [
+      "validation"
+    ]
+  },
+  "selected_validation": {
+    "scope": "synthetic_validation",
+    "count": 100,
+    "direct_speed": {
+      "count": 100,
+      "mae_kmh": 4.31595582485199,
+      "rmse_kmh": 5.430144773416204,
+      "p95_kmh": 10.499969818115227,
+      "within_2_kmh_percent": 31.0,
+      "within_5_kmh_percent": 64.0
+    },
+    "geometric_speed": {
+      "accepted": 90,
+      "rejected": 10,
+      "coverage_percent": 90.0,
+      "within_2_kmh_all_inputs_percent": 89.0,
+      "accepted_only": {
+        "count": 90,
+        "mae_kmh": 0.522227248947999,
+        "rmse_kmh": 0.7036644431034704,
+        "p95_kmh": 1.3656162925757251,
+        "within_2_kmh_percent": 98.88888888888889,
+        "within_5_kmh_percent": 100.0
+      },
+      "rejection_reasons": {
+        "insufficient_visible_tick_landmarks": 1,
+        "needle_pivot_inconsistent_with_template": 3,
+        "inconsistent_tick_reprojection": 6
+      }
+    },
+    "landmarks": {
+      "visible_tick_mean_error_px": 1.3808015156592357,
+      "visible_tick_p95_error_px": 3.0363643933100644,
+      "needle_pivot_mean_error_px": 0.7592831261749937,
+      "needle_tip_mean_error_px": 1.685895531136714,
+      "tick_visibility_accuracy_percent": 97.83333333333333,
+      "visibility_confusion_counts": {
+        "visible_detected": 533,
+        "visible_missed": 1,
+        "occluded_detected": 54,
+        "occluded_called_visible": 12
+      },
+      "occluded_tick_recall_percent": 81.81818181818181,
+      "visible_tick_recall_percent": 99.812734082397,
+      "visibility_balanced_accuracy_percent": 90.81545795028941
+    },
+    "arc": {
+      "valid_pixel_iou": 0.9242382799062292,
+      "valid_pixel_dice": 0.9606276827122144
+    },
+    "visibility_threshold": 0.5,
+    "inference_uses_ground_truth_visibility": false,
+    "inference_uses_oracle_camera_transform": false,
+    "limitation": "All samples derive from one reconstructed source. Pose families are split before rendering; these are not independent real-camera tests.",
+    "dataset_splits": [
+      "validation"
+    ]
+  },
+  "final_test": {
+    "scope": "synthetic_test",
+    "count": 100,
+    "direct_speed": {
+      "count": 100,
+      "mae_kmh": 4.191860653877259,
+      "rmse_kmh": 5.24695014513251,
+      "p95_kmh": 8.874565399169924,
+      "within_2_kmh_percent": 28.000000000000004,
+      "within_5_kmh_percent": 68.0
+    },
+    "geometric_speed": {
+      "accepted": 84,
+      "rejected": 16,
+      "coverage_percent": 84.0,
+      "within_2_kmh_all_inputs_percent": 81.0,
+      "accepted_only": {
+        "count": 84,
+        "mae_kmh": 0.5996742999817604,
+        "rmse_kmh": 0.799186399626373,
+        "p95_kmh": 1.552519968914133,
+        "within_2_kmh_percent": 96.42857142857143,
+        "within_5_kmh_percent": 100.0
+      },
+      "rejection_reasons": {
+        "inconsistent_tick_reprojection": 8,
+        "needle_pivot_inconsistent_with_template": 7,
+        "insufficient_visible_tick_landmarks": 1
+      }
+    },
+    "landmarks": {
+      "visible_tick_mean_error_px": 1.3427781631451716,
+      "visible_tick_p95_error_px": 3.193034407230881,
+      "needle_pivot_mean_error_px": 0.7820079748085381,
+      "needle_tip_mean_error_px": 1.8132455440522086,
+      "tick_visibility_accuracy_percent": 95.16666666666667,
+      "visibility_confusion_counts": {
+        "visible_detected": 528,
+        "visible_missed": 4,
+        "occluded_detected": 43,
+        "occluded_called_visible": 25
+      },
+      "occluded_tick_recall_percent": 63.23529411764706,
+      "visible_tick_recall_percent": 99.24812030075188,
+      "visibility_balanced_accuracy_percent": 81.24170720919946
+    },
+    "arc": {
+      "valid_pixel_iou": 0.9232134399989057,
+      "valid_pixel_dice": 0.9600738231107943
+    },
+    "visibility_threshold": 0.5,
+    "inference_uses_ground_truth_visibility": false,
+    "inference_uses_oracle_camera_transform": false,
+    "limitation": "All samples derive from one reconstructed source. Pose families are split before rendering; these are not independent real-camera tests.",
+    "dataset_splits": [
+      "test"
+    ]
+  },
+  "visibility_threshold_fixed_before_test": 0.5,
+  "test_used_for_checkpoint_selection": false,
+  "schema_version": "arc_ticks_augmented_v2_public_results_v1",
+  "completed_date": "2026-10-17",
+  "pose_family_counts": {
+    "train": 250,
+    "validation": 50,
+    "test": 50
+  },
+  "appearance_variants_per_pose_family": 2,
+  "selection": {
+    "split": "validation",
+    "formula": "visible_tick_mean_error_px + 20 * (1 - geometry_within_2_kmh_all_inputs_percent / 100)",
+    "best_score": 3.5808015156592354,
+    "test_used_for_selection": false
+  },
+  "test_outcomes": {
+    "within_2_kmh": 81,
+    "accepted_outside_2_kmh": 3,
+    "rejected": 16,
+    "total": 100
+  },
+  "target_assessment": {
+    "target_percent_within_2_kmh": 98,
+    "test_all_inputs_percent": 81,
+    "target_met": false,
+    "rejected_readings_count_as_failures": true
+  },
+  "comparison_definition": {
+    "previous": "Arc/tick model selected at epoch33 of the earlier review experiment, evaluated on the new validation split.",
+    "selected": "V2 epoch34; dedicated tick decoder plus a separate frozen needle branch copied from rotation epoch19. Needle improvement relative to the previous model includes this branch replacement."
+  },
+  "audit": {
+    "status": "passed",
+    "artifact_audit": "Independent results-archive audit; no inference or retraining during the audit.",
+    "completed_epochs_verified": 40,
+    "best_epoch_verified": 34,
+    "history_epochs_verified": 40,
+    "final_test_present": true,
+    "frozen_needle_source_epoch": 19,
+    "frozen_needle_tensors_compared": 258,
+    "frozen_needle_tensors_exact": true,
+    "drive_completion_markers_verified": 41,
+    "drive_checkpoint_sizes_match_markers": true,
+    "compact_archive_contains_full_optimizer_states": false,
+    "aggregate_arc_iou_independently_recomputed": false,
+    "arc_iou_note": "Reported from evaluation; the compact predictions do not include masks needed to independently recompute pixel-level IoU.",
+    "selected_model_finite_tensor_count": 553,
+    "source_files_hash_verified": 10,
+    "validation_prediction_files_recomputed": 2,
+    "test_prediction_files_recomputed": 1
+  },
+  "limitations": [
+    "All images share one reconstructed dashboard source. The 100 test images are 50 pose families with 2 appearance variants each; they are not 100 independent real scenes.",
+    "Synthetic test performance does not establish live-video or real-camera accuracy.",
+    "The obscured source 60 km/h calibration remains inferred and physically unverified.",
+    "Accepted-only geometric MAE excludes rejected readings; use the all-input success rate and coverage together.",
+    "The 98% within 2 km/h target was not met.",
+    "Model weights, full checkpoints and private paths are not included in this public result summary."
+  ],
+  "dataset_labels_sha256": "76cb9e093b1d7907f340a8e471a6132ba060dfec52550b18e244c1ed31aead6f",
+  "selected_model_sha256": "4f56b76d8b5b44a1d0a7250b52ed0b7cb3e37cd7a8baff0bdd21eff1221fa4c1"
+}

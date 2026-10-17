@@ -1,0 +1,45 @@
+{
+  "status": "passed",
+  "checked_at_utc": "2026-10-17T14:31:42.356719+00:00",
+  "test_count": 13,
+  "duration_seconds": 16.789,
+  "execution_device": "CPU",
+  "accuracy_measurement": false,
+  "tests": [
+    "CheckpointTests.test_exact_resume_restores_every_training_state_and_fixed_target",
+    "CheckpointTests.test_transfer_is_exact_weights_new_optimizer_epoch_zero_then_fresh_ignores_it",
+    "CheckpointTests.test_resume_best_uses_selected_full_state_including_optimizer",
+    "CheckpointTests.test_private_diagnostic_baseline_survives_resume_and_ignores_uncertain_speed",
+    "CheckpointTests.test_nonfinite_or_incomplete_payload_is_not_a_complete_checkpoint",
+    "CheckpointTests.test_corrupt_newest_recovers_older_but_never_silently_fresh",
+    "CheckpointTests.test_invalid_speed_label_has_zero_speed_gradient",
+    "NeedleGeometryTests.test_endpoint_tolerance_is_bounded_and_clamping_is_explicit",
+    "NeedleGeometryTests.test_shifted_pivot_and_projective_image_mapping_use_observed_pivot",
+    "DatasetContractTests.test_lcd_and_coordinate_corruption_and_source_leakage_are_rejected",
+    "NotebookSetupTests.test_zip_rejects_escape_symlink_duplicate_and_changed_cache",
+    "NotebookSetupTests.test_saved_target_and_fresh_isolation_and_no_resume_fallback",
+    "NotebookSetupTests.test_source_discovery_is_narrow_and_hash_verified"
+  ],
+  "important_checks": [
+    "Uninterrupted training equals interruption/resume for exact weights, optimizer, Python/NumPy/Torch RNG, loader generators, history and fixed target.",
+    "Resume-best restores epoch1 full state although latest is epoch3.",
+    "Approved source migration preserves weights with new optimizer and epoch0; fresh ignores source/search checkpoints.",
+    "Corrupt newest checkpoint recovers a verified older state; missing, incompatible or wholly corrupt states never silently start fresh.",
+    "Private real baseline survives restart; uncertain speed/keypoint references are excluded from reported denominators.",
+    "LCD value changes, nonbinary masks, normalized-coordinate mismatch and source-plate split leakage are rejected.",
+    "Shifted predicted pivot and projective registration recover an interior58km/h fixture without oracle camera transforms.",
+    "ZIP traversal, backslash paths, symlinks, case-fold duplicates and changed extraction caches reject.",
+    "Fixed endpoint tolerance accepts only within2km/h beyond0/180 with explicit raw speed and clamp flag; wider excursions reject, exact endpoints and interior speeds remain unchanged."
+  ],
+  "limitations": [
+    "Small software fixtures test state handling and input contracts; they do not estimate neural-network accuracy.",
+    "No long model training or real-world independent testing was performed by this suite."
+  ],
+  "source_sha256": {
+    "test_needle_training.py": "bbeadd234a0e155cf9674d918def464da02cccdf7f8c31cf87109e2f63949a83",
+    "train_needle.py": "77aa7d9db93a614cf8ac35657118faa5cf2064833ead608a331bde054174db8c",
+    "needle_data.py": "402ab16a4fd241a0f13b06973cc887cce6bff8179a7c77c7e2b4f16da17b2fea",
+    "registration_image.py": "ec765927773b08422e57728b9468292f3689ac651cfe5c155123d2a0a4a856b2",
+    "notebook_helpers.py": "3302ce0d1b216cdedde752a7066e8eac655e9a93e18647a479eede717debd4a7"
+  }
+}

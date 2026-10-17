@@ -2,6 +2,16 @@
 
 Grayscale dashboard images with speed and needle-position labels for a Triumph Scrambler 400 XC speedometer reader. Version 2 adds clockwise and counterclockwise camera rotations over the full circle, including sideways and upside-down views. Generation uses OpenCV locally, with no per-image AI generation cost.
 
+## Real dashboard adaptation V3
+
+The latest [needle adaptation experiment](real_adaptation_v3/README.md) addresses poor detections on the fixed-camera night video. It adds **500 grayscale 512×512 images**, generated from approved real-dial background repairs with a masked LCD, varied lighting/blur, and framing shifts. There are 400 training images and 100 validation images from a held-out source plate. All source plates share the same video, so this is a development check rather than an independent real test.
+
+[Open the V3 Colab notebook](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/real_adaptation_v3/Speedometer_Real_Adaptation_V3_Colab.ipynb) · [Dataset archive](real_adaptation_v3/real_dashboard_lcd_mask_500_v3.zip) · [Checksums and QA](real_adaptation_v3/dataset500_manifest.json)
+
+This experiment unfreezes the existing needle decoder and the last four encoder blocks. It calculates indicated speed from predicted needle endpoints and a manually calibrated reference dial, using image-only registration. The private run adds ten approved real training frames and reports before/after predictions on nine other frames from the same video. Private frames, original video, and model weights remain off GitHub. The notebook saves every completed epoch to Drive and supports transfer, latest, best, and fresh modes.
+
+![Examples from the real-background synthetic dataset](real_adaptation_v3/qa/contact_inputs.jpg)
+
 ## Augmented arc and tick experiment
 
 The new [augmented training notebook](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/ring_training_v2/Speedometer_Arc_Ticks_Augmented_Colab.ipynb) uses **500 training, 100 validation and 100 test images at 512×512**. The [69 MB archive](ring_training_v2/arc_needle_augmented700.zip) is downloaded automatically and verified. [Setup, metrics and restart notes](ring_training_v2/README.txt) explain the full workflow.
@@ -13,6 +23,30 @@ Training starts from the owner's private arc epoch33 and needle epoch19 weights 
 [Dataset checks and provenance](ring_training_v2/dataset_manifest.json) · [Validation report](ring_training_v2/dataset_metadata/validation_report.json) · [Reproducible generator](ring_training_v2/generate_dataset.py)
 
 ![Augmented images and transformed labels](ring_training_v2/dataset_metadata/qa/contact_sheet_labels.png)
+
+## Completed augmented arc and tick experiment
+
+The 40-epoch experiment completed on **2026-10-17**. Validation selected **epoch 34**; the final test was evaluated after selection. The test contains 100 images from 50 pose families, with two appearance variants per family.
+
+| Metric | Previous model, validation | Selected V2, validation | Selected V2, test |
+|---|---:|---:|---:|
+| Geometry within ±2 km/h, all inputs | 0/100 | 89/100 | **81/100** |
+| Accepted geometric readings | 0/100 | 90/100 | 84/100 |
+| Geometric MAE, accepted readings only | — | 0.522 km/h | 0.600 km/h |
+| Mean visible-tick error | 102.23 px | 1.38 px | 1.34 px |
+| Arc IoU | 0.697 | 0.924 | 0.923 |
+| Visibility balanced accuracy | 50.00% | 90.82% | 81.24% |
+| Direct speed head within ±2 km/h | 19/100 | 31/100 | 28/100 |
+
+**The 98% target was not met.** On the test set, 81 readings were within ±2 km/h, three accepted readings exceeded that tolerance, and 16 readings were rejected. The accepted-only MAE excludes those 16 rejections. Geometric reading was more useful than the direct speed head, but these results still leave failures to address.
+
+The previous-model column uses the earlier arc model. V2 adds the dedicated tick decoder and restores the separate epoch-19 needle branch; the needle improvement includes that branch replacement. All sets share one reconstructed dashboard, so this synthetic holdout does not establish real-camera or live-video accuracy.
+
+An independent results-archive audit verified all 40 history epochs, best epoch 34, final-test reports, and exact preservation of all 258 frozen needle tensors. Drive checks confirmed 41 completed checkpoint markers, including epoch zero, with matching file sizes. Weights and private paths remain unpublished. [Exact results, provenance and audit scope](results/arc_ticks_augmented_v2/results_summary.json) include the limitations of the compact archive audit.
+
+![Completed augmented-model synthetic results](results/arc_ticks_augmented_v2/synthetic_comparison.png)
+
+[Forty-epoch validation learning curve](results/arc_ticks_augmented_v2/tick_learning.png) · [Twenty synthetic test examples with predictions](results/arc_ticks_augmented_v2/test_predictions.png). These examples are an inspection sample; the reported test metrics use all 100 test images.
 
 ## Download and train
 
@@ -84,8 +118,8 @@ See [aggregate results and provenance](results/rotation_v2_pilot/results_summary
 
 ## Provenance and evaluation limits
 
-All images descend from one approved AI reconstruction based on the dashboard photograph supplied during development. The original photograph's website, author and license are not recorded in available project files. No new license for underlying imagery is asserted, and this project is not affiliated with Triumph.
+The earlier datasets descend from one approved AI reconstruction based on the dashboard photograph supplied during development. V3 instead uses repaired dashboard frames from the user's night video; its provenance is recorded separately. The original internet photograph's website, author and license are not recorded in available project files. No new license for underlying imagery is asserted, and this project is not affiliated with Triumph.
 
-The obscured 60 km/h calibration anchor remains inferred. Exact 0 and 180 km/h examples are training-only. Rotations add variation, not independent scenes: validation and robustness still use the same 50 held-out synthetic pose groups, and all sets share one dashboard master. Intermediate-angle results are a robustness diagnostic, not an independent real test.
+The obscured 60 km/h calibration anchor remains inferred. In the earlier rotation dataset, exact 0 and 180 km/h examples are training-only; its validation and robustness sets use the same 50 held-out synthetic pose groups. The augmented arc/tick dataset instead has 50 validation and 50 test pose families. All sets share one dashboard master, so added variations are not independent real scenes. Intermediate-angle results are a robustness diagnostic, not an independent real test.
 
 The target of 98% of readable frames within +/-2 km/h requires independently labeled real dashboard recordings. Real-camera accuracy is unmeasured. The model assumes a suitable dashboard crop; it has no dashboard detector or unreadable-frame detector.

@@ -1,0 +1,44 @@
+{
+  "status": "passed",
+  "scope": "One approved preview image, one disposable CPU update; no full training or exported weights",
+  "source": {
+    "mode": "transfer",
+    "source_sha256": "4f56b76d8b5b44a1d0a7250b52ed0b7cb3e37cd7a8baff0bdd21eff1221fa4c1",
+    "source_epoch": 34,
+    "source_branch": "needle_branch",
+    "source_architecture": "dual_mobilenet_v3_small_frozen_needle_multiscale64_ticks6_arc512_v2",
+    "target_architecture": "mobilenet_v3_small_spatial_decoder_16_24_48_576_speed582_v1",
+    "optimizer_restored": false,
+    "full_state_restored": false,
+    "epoch_numbering": "New experiment starts at0",
+    "frozen_needle_policy_removed": true
+  },
+  "sample_id": "09_060kmh",
+  "loss": 7.667755126953125,
+  "loss_components": {
+    "speed_loss": 1.0195282697677612,
+    "heatmap_loss": 7.016185760498047,
+    "coordinate_loss": 0.0793374553322792
+  },
+  "output_shapes": {
+    "speed": [
+      1
+    ],
+    "points": [
+      1,
+      2,
+      2
+    ],
+    "heatmap_logits": [
+      1,
+      2,
+      128,
+      128
+    ]
+  },
+  "needle_decoder_gradient_tensor_count": 18,
+  "encoder_gradient_tensor_count": 42,
+  "early_encoder_frozen_last_four_and_all_decoder_heads_trainable": true,
+  "needle_head_changed": true,
+  "encoder_batchnorm_running_statistics_unchanged": true
+}

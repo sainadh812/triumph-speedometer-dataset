@@ -1,0 +1,92 @@
+[
+  {
+    "path": "real_adaptation_v3/build_dataset500.py",
+    "bytes": 22490,
+    "sha256": "bafb1d63bdf1cd6a0a6d1fb6143bc04725863915bcef81deb72651b718b37e65"
+  },
+  {
+    "path": "real_adaptation_v3/dataset500_manifest.json",
+    "bytes": 2815,
+    "sha256": "d8903ab83694f025b1523ec7a703361d6bec29fccea8739d4a24897cad34c53f"
+  },
+  {
+    "path": "real_adaptation_v3/generate_preview.py",
+    "bytes": 14874,
+    "sha256": "93f1386faa67b103d56c4ab3ed41a539b060c6cf5d703430c24e03f21f80cca2"
+  },
+  {
+    "path": "real_adaptation_v3/needle_data.py",
+    "bytes": 15776,
+    "sha256": "402ab16a4fd241a0f13b06973cc887cce6bff8179a7c77c7e2b4f16da17b2fea"
+  },
+  {
+    "path": "real_adaptation_v3/needle_geometry_diagnostic.py",
+    "bytes": 2821,
+    "sha256": "a8c48a939b6c2455d9456654e3a162da73dc6208c5afbc29709d5e20e9c66a04"
+  },
+  {
+    "path": "real_adaptation_v3/notebook_helpers.py",
+    "bytes": 10294,
+    "sha256": "3302ce0d1b216cdedde752a7066e8eac655e9a93e18647a479eede717debd4a7"
+  },
+  {
+    "path": "real_adaptation_v3/qa/actual_model_cpu_smoke.json",
+    "bytes": 1341,
+    "sha256": "04d3152ba3ce01c696d90f3bf81fd39c4770c41dddd301578d22fb4d67af4e37"
+  },
+  {
+    "path": "real_adaptation_v3/qa/checks.json",
+    "bytes": 1950,
+    "sha256": "9d708516b915a2fba741a998b0559dd2ad5b2ee9b324f8eba26a4529453849f9"
+  },
+  {
+    "path": "real_adaptation_v3/qa/contact_inputs.jpg",
+    "bytes": 464680,
+    "sha256": "133498bd1f8458d6e4626b924e6321f875049be108a56b419499989e3836558a"
+  },
+  {
+    "path": "real_adaptation_v3/qa/contact_labels.jpg",
+    "bytes": 498084,
+    "sha256": "ed4fcb06bdee8c861b8567a490faab6ba35f4e5f7b01632a982ef173a4aecd5a"
+  },
+  {
+    "path": "real_adaptation_v3/qa/software_verification.json",
+    "bytes": 3316,
+    "sha256": "975a1687588200a7bbfd2bb58555140ec24fb78f30daf687f83606b5dd262175"
+  },
+  {
+    "path": "real_adaptation_v3/README.md",
+    "bytes": 4983,
+    "sha256": "1724fc34867690bc9f40a7cbb0ed0e0e1d400eeda9e65a7fe97dbf9a8d11c5fe"
+  },
+  {
+    "path": "real_adaptation_v3/real_dashboard_lcd_mask_500_v3.zip",
+    "bytes": 58209329,
+    "sha256": "55df4c5ec13830f1eaa9cff7a01f3db1d2d1a03505b0aa3422e1db2c0e51200a"
+  },
+  {
+    "path": "real_adaptation_v3/register_frames.py",
+    "bytes": 3380,
+    "sha256": "e83ae73b379e4fae6187bd83d154085dd83694834bb1cab57f738d802cfda1cb"
+  },
+  {
+    "path": "real_adaptation_v3/registration_image.py",
+    "bytes": 5163,
+    "sha256": "ec765927773b08422e57728b9468292f3689ac651cfe5c155123d2a0a4a856b2"
+  },
+  {
+    "path": "real_adaptation_v3/render_diagnostics.py",
+    "bytes": 3491,
+    "sha256": "0ef10bcb21a36d262a71ea9c1d3ada7f18082df48a817e97da56308e92c63465"
+  },
+  {
+    "path": "real_adaptation_v3/test_needle_training.py",
+    "bytes": 25741,
+    "sha256": "bbeadd234a0e155cf9674d918def464da02cccdf7f8c31cf87109e2f63949a83"
+  },
+  {
+    "path": "real_adaptation_v3/train_needle.py",
+    "bytes": 38945,
+    "sha256": "77aa7d9db93a614cf8ac35657118faa5cf2064833ead608a331bde054174db8c"
+  }
+]

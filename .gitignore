@@ -15,3 +15,10 @@ ring_training_v2/checks/
 ring_training_v2/dataset_v2/
 ring_training_v2/runs/
 !ring_training_v2/arc_needle_augmented700.zip
+
+real_adaptation_v3/dataset500/
+real_adaptation_v3/real_review/
+real_adaptation_v3/real_frames/
+real_adaptation_v3/checks/
+real_adaptation_v3/private_*
+!real_adaptation_v3/real_dashboard_lcd_mask_500_v3.zip

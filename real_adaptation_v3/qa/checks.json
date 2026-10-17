@@ -1,0 +1,77 @@
+{
+  "status": "passed",
+  "image_count": 500,
+  "splits": {
+    "train": 400,
+    "validation": 100
+  },
+  "source_frames_by_split": {
+    "train": [
+      0,
+      180
+    ],
+    "validation": [
+      204
+    ]
+  },
+  "no_source_plate_crosses_splits": true,
+  "duplicate_image_count": 0,
+  "exact_approved_preview_duplicates": 0,
+  "all_images_grayscale512_uint8": true,
+  "all_lcd_pixels_exact128": true,
+  "all_masks_binary512": true,
+  "no_needle_or_required_landmark_inside_lcd_mask": true,
+  "all_point_transforms_consistent": true,
+  "max_endpoint_to_needle_mask_distance_px": 1.232045242089033,
+  "render_speed_roundtrip_max_error_kmh": 5.684341886080802e-14,
+  "profile_counts": {
+    "motion": 62,
+    "clean": 63,
+    "shadow": 63,
+    "bright": 62,
+    "dim": 63,
+    "compression": 62,
+    "reflection": 63,
+    "blur": 62
+  },
+  "profile_counts_by_split": {
+    "train": {
+      "motion": 50,
+      "clean": 50,
+      "shadow": 50,
+      "bright": 50,
+      "dim": 50,
+      "compression": 50,
+      "reflection": 50,
+      "blur": 50
+    },
+    "validation": {
+      "shadow": 13,
+      "dim": 13,
+      "blur": 12,
+      "motion": 12,
+      "clean": 13,
+      "reflection": 13,
+      "compression": 12,
+      "bright": 12
+    }
+  },
+  "framing_profile_counts": {
+    "near_reference": 375,
+    "observed_framing_shift": 125
+  },
+  "estimated_registration_counts": {
+    "accepted": 500
+  },
+  "estimated_registration_vs_render_geometry_diagnostic": {
+    "mean_tick_error_px": 0.11353384470013891,
+    "p95_tick_error_px": 0.3118361367364826,
+    "max_tick_error_px": 2.105882107465742,
+    "note": "Evaluation of image-only registration; rendering H not used by its estimator."
+  },
+  "source_repairs_preserve_outside_mask": true,
+  "calibration_is_visual_draft": true,
+  "independent_test_set": false,
+  "training_performed": false,
+  "uploaded": false
+}
