@@ -58,3 +58,17 @@ Model selection combines fill error on every readable target and readability los
 `prepare_dataset.py` and `preprocess.py` define rendering and model input. `calibration/` records reference points and source-asset provenance. `data_download_manifest.json` protects the published archive. `train_rpm.py` defines the model and resumable training. The notebook pins OpenCV 4.14.0 and NumPy 2.1.3; checkpoints also record and verify the training runtime.
 
 The local source generator expects the project's RPM prototype review assets; the published dataset and Colab notebook are usable without the original videos. Source material is the user's dashboard recording. No license for third-party underlying imagery is asserted by this RPM update.
+
+## First Colab pilot result
+
+The initial T4 run completed on 2026-10-17, stopping early at epoch 17; the combined selection score chose epoch 9. The training cell took 49 seconds. All 18 initial/epoch checkpoints passed the Drive hash audit, and best/latest full states loaded successfully.
+
+| Synthetic validation metric | Best selected model |
+|---|---:|
+| Approximate indicated RPM MAE | 135.97 RPM |
+| Approximate indicated RPM 95th-percentile absolute error | 352.28 RPM |
+| Readability balanced accuracy | 95.16% |
+| Readable-target recall | 99.06% |
+| Unreadable-target specificity | 91.25% |
+
+The 19 real development frames yielded nine tentative readings, four low-readability abstentions, and six external-state suppressions. This is coverage, not real accuracy. A visual comparison against five pre-existing broad RPM brackets found one reading outside its bracket (frame 338: approximately 3,194 versus 1,000–3,000); these brackets are not measured engine RPM. Calibration and independent real-video evaluation remain necessary.

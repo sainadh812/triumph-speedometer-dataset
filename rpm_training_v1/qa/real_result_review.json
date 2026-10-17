@@ -1,0 +1,306 @@
+{
+  "schema_version": 1,
+  "audit_type": "bounded_manual_review_of_colab_displayed_real_development_results",
+  "evidence": {
+    "training_output": {
+      "path": "rpm_training_v1/qa/colab_training_output.txt",
+      "sha256": "d3a93c1f8ed76eee455e3a4df4f1b94b41469fc707a902d99fafd5edd646d521"
+    },
+    "displayed_contact_sheet": {
+      "path": "rpm_training_v1/qa/colab_real_development_predictions.jpg",
+      "sha256": "403d37811dc43f542dbeb2e21ca17399078dd0b3085ddf1776eaaa9c211f288b"
+    },
+    "real_diagnostic_metadata": {
+      "path": "rpm_training_v1/dataset/real_diagnostics/labels.jsonl",
+      "sha256": "6322a00b71dbc75b04d75cda34082d7f7979d17d4a950a4e3a81ba539ce1d5ae"
+    },
+    "manual_reference": {
+      "path": "rpm_prototype/qa/manual_bar_reference.json",
+      "sha256": "66752f73b470459e8fc27fb676dc72824bce003338887dbe9a08c758263a4aa0"
+    },
+    "prior_prototype_comparison": {
+      "path": "rpm_prototype/qa/manual_comparison.json",
+      "sha256": "6dd347c5b93f5bb475c744ccb3493a822acb81555aba059fd818b5c0023196e8"
+    }
+  },
+  "verification_scope": {
+    "training_metrics_source": "saved Colab stdout, parsed directly",
+    "real_predictions_source": "human visual transcription of rounded labels on the saved displayed JPEG",
+    "raw_real_prediction_json_available": false,
+    "weights_downloaded_or_replayed_for_this_review": false,
+    "checkpoint_bytes_or_Drive_state_independently_verified_here": false,
+    "manual_reference_modified_after_predictions": false,
+    "numeric_ground_truth_accuracy_computed": false
+  },
+  "training_summary": {
+    "best_epoch": 9,
+    "completed_epoch": 17,
+    "stop_reason": "early_stopping",
+    "selection_basis": "combined all-readable fill MAE + 0.25 readability BCE, not minimum RPM MAE alone",
+    "validation_scope": "400 synthetic validation images: 320 readable targets and 80 unresolved targets",
+    "best_validation": {
+      "samples": 400,
+      "readable_targets": 320,
+      "unreadable_targets": 80,
+      "fill_fraction_mae": 0.011330857523716986,
+      "fill_fraction_p95_abs_error": 0.02935633584856987,
+      "approx_indicated_rpm_mae": 135.97029028460383,
+      "approx_indicated_rpm_p95_abs_error": 352.27603018283844,
+      "readability_bce": 0.09656695324858783,
+      "readability_accuracy": 0.975,
+      "readability_precision": 0.9783950617283951,
+      "readability_recall": 0.990625,
+      "readability_specificity": 0.9125,
+      "readability_balanced_accuracy": 0.9515625,
+      "readability_confusion": {
+        "tp": 317,
+        "fp": 7,
+        "tn": 73,
+        "fn": 3
+      },
+      "predicted_readable_count": 324,
+      "abstained_count": 76,
+      "numeric_output_coverage": 0.81,
+      "readable_target_coverage": 0.990625,
+      "accepted_readable_approx_rpm_mae": 133.55617549517177,
+      "selection_score": 0.03547259583586394,
+      "selection_definition": "fill MAE on ALL readable targets + readability_weight * BCE on ALL targets",
+      "readability_threshold": 0.5,
+      "metric_scope": "synthetic validation agreement with draft calibration; not real engine-RPM accuracy",
+      "score_semantics": "uncalibrated readability score; not running-state or physical-RPM confidence"
+    }
+  },
+  "real_gating_counts": {
+    "frames": 19,
+    "approximate_numeric_readings": 9,
+    "low_readability_abstentions": 4,
+    "external_display_state_suppressions": 6,
+    "outside_training_range_suppressions": 0,
+    "eligible_after_external_state_gate": 13,
+    "numeric_output_coverage_all_frames": 0.47368421052631576,
+    "numeric_output_coverage_after_external_state_gate": 0.6923076923076923
+  },
+  "sheet_transcription": [
+    {
+      "id": "real_02",
+      "source_frame": 116,
+      "display_state": "blank_or_initializing",
+      "sheet_indicated_rpm_approx": null,
+      "sheet_reason": "external_display_state_gate"
+    },
+    {
+      "id": "real_03",
+      "source_frame": 130,
+      "display_state": "startup_self_test",
+      "sheet_indicated_rpm_approx": null,
+      "sheet_reason": "external_display_state_gate"
+    },
+    {
+      "id": "real_04",
+      "source_frame": 173,
+      "display_state": "startup_self_test",
+      "sheet_indicated_rpm_approx": null,
+      "sheet_reason": "external_display_state_gate"
+    },
+    {
+      "id": "real_05",
+      "source_frame": 200,
+      "display_state": "unknown",
+      "sheet_indicated_rpm_approx": null,
+      "sheet_reason": "external_display_state_gate"
+    },
+    {
+      "id": "real_06",
+      "source_frame": 260,
+      "display_state": "low_detail",
+      "sheet_indicated_rpm_approx": null,
+      "sheet_reason": "external_display_state_gate"
+    },
+    {
+      "id": "real_07",
+      "source_frame": 0,
+      "display_state": "readable",
+      "sheet_indicated_rpm_approx": null,
+      "sheet_reason": "low_readability_score"
+    },
+    {
+      "id": "real_08",
+      "source_frame": 42,
+      "display_state": "readable",
+      "sheet_indicated_rpm_approx": null,
+      "sheet_reason": "low_readability_score"
+    },
+    {
+      "id": "real_09",
+      "source_frame": 84,
+      "display_state": "readable",
+      "sheet_indicated_rpm_approx": 1591,
+      "sheet_reason": "approximate_prediction"
+    },
+    {
+      "id": "real_10",
+      "source_frame": 127,
+      "display_state": "readable",
+      "sheet_indicated_rpm_approx": 1559,
+      "sheet_reason": "approximate_prediction"
+    },
+    {
+      "id": "real_11",
+      "source_frame": 169,
+      "display_state": "readable",
+      "sheet_indicated_rpm_approx": 2734,
+      "sheet_reason": "approximate_prediction"
+    },
+    {
+      "id": "real_12",
+      "source_frame": 211,
+      "display_state": "readable",
+      "sheet_indicated_rpm_approx": 2244,
+      "sheet_reason": "approximate_prediction"
+    },
+    {
+      "id": "real_13",
+      "source_frame": 254,
+      "display_state": "readable",
+      "sheet_indicated_rpm_approx": 3490,
+      "sheet_reason": "approximate_prediction"
+    },
+    {
+      "id": "real_14",
+      "source_frame": 296,
+      "display_state": "readable",
+      "sheet_indicated_rpm_approx": 3654,
+      "sheet_reason": "approximate_prediction"
+    },
+    {
+      "id": "real_15",
+      "source_frame": 338,
+      "display_state": "readable",
+      "sheet_indicated_rpm_approx": 3194,
+      "sheet_reason": "approximate_prediction"
+    },
+    {
+      "id": "real_16",
+      "source_frame": 360,
+      "display_state": "readable",
+      "sheet_indicated_rpm_approx": 2006,
+      "sheet_reason": "approximate_prediction"
+    },
+    {
+      "id": "real_17",
+      "source_frame": 381,
+      "display_state": "engine_off_message",
+      "sheet_indicated_rpm_approx": 936,
+      "sheet_reason": "approximate_prediction"
+    },
+    {
+      "id": "real_18",
+      "source_frame": 410,
+      "display_state": "engine_off_message",
+      "sheet_indicated_rpm_approx": null,
+      "sheet_reason": "low_readability_score"
+    },
+    {
+      "id": "real_19",
+      "source_frame": 423,
+      "display_state": "low_detail",
+      "sheet_indicated_rpm_approx": null,
+      "sheet_reason": "external_display_state_gate"
+    },
+    {
+      "id": "real_20",
+      "source_frame": 466,
+      "display_state": "engine_off_message",
+      "sheet_indicated_rpm_approx": null,
+      "sheet_reason": "low_readability_score"
+    }
+  ],
+  "manual_bracket_comparison": {
+    "compared_numeric_frames": 5,
+    "within_bracket": 4,
+    "outside_bracket": 1,
+    "accuracy_percentage": null,
+    "comparisons": [
+      {
+        "id": "real_09",
+        "source_frame": 84,
+        "sheet_indicated_rpm_approx": 1591,
+        "unchanged_manual_rpm_bracket": [
+          0,
+          2000
+        ],
+        "within_broad_manual_bracket": true,
+        "amount_outside_bracket_rpm": 0,
+        "prior_nonlearned_prototype_estimate_rpm": 1600,
+        "difference_from_prior_prototype_rpm_not_ground_truth_error": -9
+      },
+      {
+        "id": "real_11",
+        "source_frame": 169,
+        "sheet_indicated_rpm_approx": 2734,
+        "unchanged_manual_rpm_bracket": [
+          1000,
+          3000
+        ],
+        "within_broad_manual_bracket": true,
+        "amount_outside_bracket_rpm": 0,
+        "prior_nonlearned_prototype_estimate_rpm": 2600,
+        "difference_from_prior_prototype_rpm_not_ground_truth_error": 134
+      },
+      {
+        "id": "real_13",
+        "source_frame": 254,
+        "sheet_indicated_rpm_approx": 3490,
+        "unchanged_manual_rpm_bracket": [
+          2000,
+          4000
+        ],
+        "within_broad_manual_bracket": true,
+        "amount_outside_bracket_rpm": 0,
+        "prior_nonlearned_prototype_estimate_rpm": 3200,
+        "difference_from_prior_prototype_rpm_not_ground_truth_error": 290
+      },
+      {
+        "id": "real_15",
+        "source_frame": 338,
+        "sheet_indicated_rpm_approx": 3194,
+        "unchanged_manual_rpm_bracket": [
+          1000,
+          3000
+        ],
+        "within_broad_manual_bracket": false,
+        "amount_outside_bracket_rpm": 194,
+        "prior_nonlearned_prototype_estimate_rpm": 2800,
+        "difference_from_prior_prototype_rpm_not_ground_truth_error": 394
+      },
+      {
+        "id": "real_17",
+        "source_frame": 381,
+        "sheet_indicated_rpm_approx": 936,
+        "unchanged_manual_rpm_bracket": [
+          0,
+          2000
+        ],
+        "within_broad_manual_bracket": true,
+        "amount_outside_bracket_rpm": 0,
+        "prior_nonlearned_prototype_estimate_rpm": 1000,
+        "difference_from_prior_prototype_rpm_not_ground_truth_error": -64
+      }
+    ],
+    "baseline_frame_0_and_466": "Both show low-readability abstention, compatible with the independent baseline ambiguity; exact zero is not established.",
+    "frame_338_review_flag": "About 3194 RPM is 194 above the unchanged broad 1000-3000 manual bracket. Reinspect against clearer frame/scale evidence; the bracket is approximate, so 194 is not a verified model error.",
+    "frame_381": "About 936 RPM is displayed while EN-OFF is present, consistent with a visible residual bar and no forced-zero override."
+  },
+  "conclusion": "Encouraging limited visual transfer: the displayed readings follow a rising and falling visible bar, the baseline examples abstain, and four of five prior broad visual brackets contain the reading. Frame 338 remains a discrepancy to inspect. This is insufficient to establish real RPM accuracy or readiness across cameras and lighting.",
+  "limitations": [
+    "All real targets are unlabeled; this report does not compute real RPM MAE, accuracy, or a pass rate.",
+    "Displayed values are rounded to integer RPM and manually transcribed; raw readability scores and exact predictions were unavailable for this review.",
+    "The prior prototype estimates are another algorithm, not independent numeric ground truth; differences are descriptive only.",
+    "The development frames share the recording/dashboard and include source appearance frames used during synthetic construction.",
+    "External state gates are precomputed prototype decisions; their suppression is not learned CNN success and live gate/registration performance was not tested here.",
+    "The small CNN predicts fill fraction and readability, not an independently localized edge; the prior point-distance audit cannot be reused as learned-model localization accuracy.",
+    "The 97.5% synthetic readability accuracy and 135.97 approximate-RPM MAE describe different metrics; neither is a real engine-RPM accuracy claim.",
+    "Synthetic unreadable specificity is 91.25% (7 of 80 negatives accepted), so unresolved-input acceptance remains a known validation limitation.",
+    "Exact engine-RPM calibration, fine physical segment increments, upper-range real behavior, new sessions, and full-video temporal behavior remain unverified."
+  ]
+}
