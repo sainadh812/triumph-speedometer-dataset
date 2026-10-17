@@ -1,0 +1,92 @@
+{
+  "status": "passed",
+  "elapsed_seconds": 59.987,
+  "dataset_integrity": {
+    "manifest_sha256": "fb31f0413b76ba487092d5c2d39a28db9f851d07afcad3c05778a2abfc9bdc62",
+    "annotation_sha256": "df6122e77cb5ea5b9ee95b55c3e52ed22e292f872ca337487b7693c2a12ed5e4",
+    "calibration_sha256": "2581a049a418d0f337a9997dcd6d196aef7d49d4d9194acc2bc176f14441d2f5",
+    "sample_counts": {
+      "train": 1600,
+      "validation": 400
+    },
+    "source_groups": {
+      "train": [
+        "day174359_plate_0000",
+        "day174359_plate_0120",
+        "day174359_plate_0300",
+        "day174359_plate_0480"
+      ],
+      "validation": [
+        "day174359_plate_0060",
+        "day174359_plate_0450"
+      ]
+    },
+    "preprocessing": {
+      "color": "grayscale",
+      "input_size": [
+        512,
+        512
+      ],
+      "camera_stabilization": "image_only_day_reference_SIFT_static_scale_RANSAC",
+      "lcd_mask_applied": true,
+      "lcd_mask_value": 128,
+      "lcd_polygon_reference_xy": [
+        [
+          300,
+          161
+        ],
+        [
+          417,
+          123
+        ],
+        [
+          417,
+          248
+        ],
+        [
+          361,
+          265
+        ],
+        [
+          350,
+          260
+        ],
+        [
+          300,
+          180
+        ]
+      ],
+      "mask_before_geometric_augmentation": true,
+      "fixed_mask_path": "fixed_lcd_mask.png",
+      "fixed_mask_sha256": "1f65a3b749d8e373b7c8e37649738441ea02b98661e23a732f2c53277adcdd13",
+      "reference_image_path": "reference.png",
+      "reference_sha256": "0bd0420fe12730f7e6c1fc1be6e05adcbda481a314d213ea837d5188b4920cb3",
+      "canonical_calibration_sha256": "2581a049a418d0f337a9997dcd6d196aef7d49d4d9194acc2bc176f14441d2f5",
+      "stabilize_mask_script_sha256": "7f9df447f47d85e178b9058521626338c20d8e90feebc2e6af2c0b4d4f389033",
+      "reference_footprint_x_inclusive": [
+        95,
+        416
+      ],
+      "geometric_augmentations": [
+        "rotation+-30deg",
+        "translation+-24px",
+        "scale0.85-1.10",
+        "shear+-0.08",
+        "perspectivecorner+-7px"
+      ],
+      "flipping": false
+    },
+    "landmark_supervision": "amodal_in_frame_landmark_availability",
+    "limitation": "Same-video synthetic development holdout, not independent camera accuracy"
+  },
+  "verified_requirements": [
+    "every manifest file SHA256",
+    "all 2000 grayscale512 inputs",
+    "binary per-image LCD masks",
+    "all hidden pixels exactly128",
+    "landmarks and needle shafts outside mask",
+    "source group split isolation",
+    "amodal landmark supervision",
+    "protected static calibration, reference, mask, preprocessing config and stabilizer implementation"
+  ]
+}
