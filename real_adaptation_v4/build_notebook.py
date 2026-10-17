@@ -24,8 +24,8 @@ EPOCHS = 20 #@param {type:"integer"}
 BATCH_SIZE = 8 #@param {type:"integer"}
 SOURCE_CHECKPOINT = "/content/drive/MyDrive/SpeedometerTraining/experiments/speedometer_real_needle_v3/runs/20261017_144300_919847_94361a85/best_model.pt" #@param {type:"string"}
 DOWNLOAD_RESULTS = True #@param {type:"boolean"}
-CODE_COMMIT = "PENDING_PUBLICATION_COMMIT"
-DATA_MANIFEST_SHA256 = "PENDING_DATA_MANIFEST_SHA256"
+CODE_COMMIT = "5d8093de966eacb27ace59c48878104413ae1f16"
+DATA_MANIFEST_SHA256 = "8546b2a6f73bf3ec5898a90800b6d102f79f9aa82b3eb79d1f2c62a4f3dd83a4"
 DATA_MANIFEST_FILENAME = "data_download_manifest.json"
 SOURCE_SHA256 = "8dcfa269848bac5a46c8ff39d14df4d3470e67905085fb0a662ee45b9bc99d10"
 ''')
