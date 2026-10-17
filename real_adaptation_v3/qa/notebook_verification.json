@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "scope": "Actual notebook training/export cells with bounded software fixtures; no model training, network or Drive writes.",
+  "checks": [
+    "An interrupted resume can retry within the same runtime; completed rerun does not train twice.",
+    "An active identical call is rejected.",
+    "Interrupted transfer cannot initialize again through the training cell.",
+    "Compact export is CRC checked and atomically promoted; epoch weights are excluded.",
+    "A valid existing export is verified and reused unchanged.",
+    "An invalid existing export is rejected rather than downloaded."
+  ],
+  "compiled_code_cells": 7,
+  "notebook_sha256_at_check": "1094b32eb32450a9f8ae54ce925ed4fe73493a4e7d7baafa5bad23fd76886402",
+  "publication_commit_pin_pending": false,
+  "pinned_code_commit": "053ce9692a4471a76e8445d76e61b036e3a4d96c",
+  "published_data_sha256": "55df4c5ec13830f1eaa9cff7a01f3db1d2d1a03505b0aa3422e1db2c0e51200a",
+  "notebook_sha256_after_pins": "dc89c6227c876644637a628ced420e1e49d26b700b170fcd139dbb20bdbc44f5"
+}

@@ -50,6 +50,11 @@
     "sha256": "ed4fcb06bdee8c861b8567a490faab6ba35f4e5f7b01632a982ef173a4aecd5a"
   },
   {
+    "path": "real_adaptation_v3/qa/notebook_verification.json",
+    "bytes": 1072,
+    "sha256": "8cfcc4ab830d02abdc4dbba3f658c22beff6964a34f3233a3fb43728efd7e54d"
+  },
+  {
     "path": "real_adaptation_v3/qa/software_verification.json",
     "bytes": 3316,
     "sha256": "975a1687588200a7bbfd2bb58555140ec24fb78f30daf687f83606b5dd262175"
@@ -78,6 +83,11 @@
     "path": "real_adaptation_v3/render_diagnostics.py",
     "bytes": 3491,
     "sha256": "0ef10bcb21a36d262a71ea9c1d3ada7f18082df48a817e97da56308e92c63465"
+  },
+  {
+    "path": "real_adaptation_v3/Speedometer_Real_Adaptation_V3_Colab.ipynb",
+    "bytes": 20555,
+    "sha256": "dc89c6227c876644637a628ced420e1e49d26b700b170fcd139dbb20bdbc44f5"
   },
   {
     "path": "real_adaptation_v3/test_needle_training.py",
