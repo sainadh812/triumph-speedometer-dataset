@@ -13,8 +13,13 @@ import csv
 import hashlib
 import json
 import math
+import os
+import pickle
 import random
+import shutil
+import tempfile
 import time
+import uuid
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -588,3 +593,522 @@ def predict_image(model, image, input_size=512):
             "keypoints_input_px": {name: (points[index] * (input_size - 1)).tolist()
                                    for index, name in enumerate(("pivot", "tip"))},
             "input_size": input_size}
+
+
+# Versioned training checkpoints deliberately do not change the model or pilot API.
+_ARCHITECTURE_ID = "mobilenet_v3_small_spatial_decoder_16_24_48_576_speed582_v1"
+_PREPROCESSING_ID = "PIL grayscale -> square bilinear resize -> repeated RGB -> ImageNet norm"
+_RESUME_CONFIG_KEYS = (
+    "input_size", "batch_size", "head_epochs", "finetune_epochs", "patience",
+    "seed", "head_lr", "finetune_lr", "backbone_lr", "weight_decay",
+    "num_workers", "amp", "min_delta_kmh", "heatmap_weight",
+    "coordinate_weight", "heatmap_sigma",
+)
+
+
+def _persistent_data(config):
+    records, integrity = verify_dataset(config.data_dir)
+    train = select_group_subset([r for r in records if r["dataset_split"] == "train"],
+                                config.max_train_samples, config.seed)
+    validation = select_group_subset([r for r in records if r["dataset_split"] == "validation"],
+                                     config.max_val_samples, config.seed)
+    integrity = dict(integrity, used_train_samples=len(train), used_validation_samples=len(validation),
+                     used_train_ids=[r["sample_id"] for r in train],
+                     used_validation_ids=[r["sample_id"] for r in validation])
+    return train, validation, integrity
+
+
+def _identity(config, integrity):
+    values = asdict(config)
+    return {
+        "architecture": _ARCHITECTURE_ID, "preprocessing": _PREPROCESSING_ID,
+        "labels_sha256": integrity["labels_sha256"],
+        "train_ids": integrity["used_train_ids"],
+        "validation_ids": integrity["used_validation_ids"],
+        "keypoint_order": ["pivot", "tip"], "speed_range_kmh": [0, 180],
+        "training_config": {key: values[key] for key in _RESUME_CONFIG_KEYS},
+        "device_type": _device(config).type,
+        "amp_enabled": bool(config.amp and _device(config).type == "cuda"),
+        "torch_version": str(torch.__version__),
+    }
+
+
+def checkpoint_identity(config):
+    """Derive the strict experiment identity used for full-state resume.
+
+    Paths and initialization choice do not affect an already initialized model.
+    Dataset contents, exact subsets, training settings and runtime version do.
+    Switching runtime/library versions therefore fails explicitly rather than
+    presenting a different training trajectory as an exact continuation.
+    """
+    _, _, integrity = _persistent_data(config)
+    return _identity(config, integrity)
+
+
+def _cpu_tree(value):
+    if isinstance(value, torch.Tensor):
+        return value.detach().cpu().clone()
+    if isinstance(value, dict):
+        return {key: _cpu_tree(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return tuple(_cpu_tree(item) for item in value)
+    if isinstance(value, list):
+        return [_cpu_tree(item) for item in value]
+    return value
+
+
+def _capture_rng():
+    numpy_state = np.random.get_state()
+    return {
+        "python": random.getstate(),
+        # NumPy arrays/classes are intentionally absent for weights_only=True.
+        "numpy": [str(numpy_state[0]), numpy_state[1].tolist(), int(numpy_state[2]),
+                  int(numpy_state[3]), float(numpy_state[4])],
+        "torch": torch.get_rng_state().clone(),
+        "cuda": [state.cpu().clone() for state in torch.cuda.get_rng_state_all()]
+                if torch.cuda.is_available() else [],
+        "cudnn_deterministic": bool(torch.backends.cudnn.deterministic),
+        "cudnn_benchmark": bool(torch.backends.cudnn.benchmark),
+    }
+
+
+def _restore_rng(state):
+    random.setstate(state["python"])
+    np_state = state["numpy"]
+    np.random.set_state((np_state[0], np.asarray(np_state[1], dtype=np.uint32),
+                         np_state[2], np_state[3], np_state[4]))
+    torch.set_rng_state(state["torch"].cpu())
+    if state["cuda"]:
+        if not torch.cuda.is_available() or len(state["cuda"]) != torch.cuda.device_count():
+            raise ValueError("CUDA RNG state requires the same number of CUDA devices")
+        torch.cuda.set_rng_state_all(state["cuda"])
+    torch.backends.cudnn.deterministic = state["cudnn_deterministic"]
+    torch.backends.cudnn.benchmark = state["cudnn_benchmark"]
+
+
+def _copy_verified(local_path, destination, expected_hash):
+    """Copy to an unpublished name, verify the destination bytes, then rename."""
+    destination = Path(destination)
+    partial = destination.with_name(destination.name + "." + uuid.uuid4().hex + ".partial")
+    with Path(local_path).open("rb") as source, partial.open("xb") as target:
+        shutil.copyfileobj(source, target, length=1024 * 1024)
+        target.flush()
+        os.fsync(target.fileno())
+    if _sha256(partial) != expected_hash:
+        raise IOError(f"Checkpoint copy verification failed: {partial}")
+    os.replace(partial, destination)
+    if _sha256(destination) != expected_hash:
+        raise IOError(f"Checkpoint verification after rename failed: {destination}")
+
+
+def _save_durable(payload, destination, *, kind, identity, epoch, validation_mae_kmh):
+    """Publish completion only after local and destination verification.
+
+    Drive's FUSE mount cannot promise remote transactional fsync semantics. A
+    completion sidecar plus a fresh SHA256 check makes partial uploads ineligible
+    for discovery; prior epoch files remain independent recovery points.
+    """
+    destination = Path(destination)
+    with tempfile.TemporaryDirectory(prefix="speedometer_checkpoint_") as temporary:
+        staged = Path(temporary) / "checkpoint.pt"
+        with staged.open("wb") as handle:
+            torch.save(payload, handle)
+            handle.flush()
+            os.fsync(handle.fileno())
+        # Exercise the same safe loader used for restoration before publication.
+        torch.load(staged, map_location="cpu", weights_only=True)
+        digest = _sha256(staged)
+        _copy_verified(staged, destination, digest)
+        manifest = {
+            "manifest_version": 1, "kind": kind, "checkpoint": destination.name,
+            "sha256": digest, "size_bytes": destination.stat().st_size,
+            "epoch": int(epoch), "validation_mae_kmh": float(validation_mae_kmh),
+            "created_at_ns": time.time_ns(), "identity": identity,
+        }
+        sidecar = destination.with_suffix(".complete.json")
+        staged_manifest = Path(temporary) / "manifest.json"
+        _json_write(staged_manifest, manifest)
+        _copy_verified(staged_manifest, sidecar, _sha256(staged_manifest))
+    return {**manifest, "checkpoint_path": str(destination), "manifest_path": str(sidecar)}
+
+
+def _load_verified(candidate):
+    path = Path(candidate["checkpoint_path"])
+    if path.stat().st_size != candidate["size_bytes"] or _sha256(path) != candidate["sha256"]:
+        raise IOError(f"Checkpoint changed or is incomplete: {path}")
+    payload = torch.load(path, map_location="cpu", weights_only=True)
+    required = {"model_state_dict", "optimizer_state_dict", "scaler_state_dict", "rng_state",
+                "loader_generator_states", "history", "training_state", "best_state", "identity"}
+    if (payload.get("format_version") != 2
+            or payload.get("checkpoint_kind") != "full_training_state"
+            or not required.issubset(payload)):
+        raise ValueError(f"Not a complete training-state checkpoint: {path}")
+    if payload["identity"] != candidate["identity"]:
+        raise ValueError(f"Manifest/checkpoint identity mismatch: {path}")
+    state = payload["training_state"]
+    state_keys = {"epoch", "stage", "stage_epoch", "stage_best", "stale", "target_epoch",
+                  "head_budget", "finetune_budget", "training_complete", "completion_reason"}
+    if not isinstance(state, dict) or not state_keys.issubset(state):
+        raise ValueError(f"Incomplete stage/counter state: {path}")
+    if state["stage"] not in {"heads", "finetune"}:
+        raise ValueError(f"Invalid stage: {path}")
+    if not {"epoch", "model_state_dict", "validation_metrics", "provenance"}.issubset(payload["best_state"]):
+        raise ValueError(f"Incomplete best-model state: {path}")
+    if not {"train", "validation"}.issubset(payload["loader_generator_states"]):
+        raise ValueError(f"Incomplete DataLoader RNG state: {path}")
+    if not {"python", "numpy", "torch", "cuda", "cudnn_deterministic", "cudnn_benchmark"}.issubset(payload["rng_state"]):
+        raise ValueError(f"Incomplete random state: {path}")
+    if not {"state", "param_groups"}.issubset(payload["optimizer_state_dict"]):
+        raise ValueError(f"Incomplete optimizer state: {path}")
+    if state["epoch"] != candidate["epoch"]:
+        raise ValueError(f"Manifest/checkpoint epoch mismatch: {path}")
+    if not math.isclose(payload["validation_metrics"]["mae_kmh"],
+                        candidate["validation_mae_kmh"], rel_tol=1e-12):
+        raise ValueError(f"Manifest/checkpoint metric mismatch: {path}")
+    return payload
+
+
+def discover_checkpoints(search_root, *, expected_identity=None):
+    """Find hash-verified complete full-state checkpoints, skipping bad saves.
+
+    The returned list is sorted by publication time. A complete.json sidecar
+    never bypasses byte verification. Incompatible identities are not candidates.
+    An empty result is not permission to silently initialize a new model.
+    """
+    root = Path(search_root)
+    candidates = []
+    if not root.exists():
+        return candidates
+    for sidecar in root.rglob("epoch_*.complete.json"):
+        try:
+            manifest = json.loads(sidecar.read_text(encoding="utf-8"))
+            if not isinstance(manifest, dict):
+                continue
+            if manifest.get("manifest_version") != 1 or manifest.get("kind") != "full_training_state":
+                continue
+            if any(type(manifest.get(key)) is not int or manifest[key] < minimum
+                   for key, minimum in (("size_bytes", 1), ("epoch", 0), ("created_at_ns", 1))):
+                continue
+            digest = manifest.get("sha256")
+            if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                continue
+            if not isinstance(manifest.get("identity"), dict):
+                continue
+            if expected_identity is not None and manifest.get("identity") != expected_identity:
+                continue
+            filename = manifest["checkpoint"]
+            if Path(filename).name != filename:
+                continue
+            path = sidecar.parent / filename
+            if not path.resolve().is_relative_to(root.resolve()):
+                continue
+            if not math.isfinite(float(manifest["validation_mae_kmh"])):
+                continue
+            candidate = {**manifest, "checkpoint_path": str(path), "manifest_path": str(sidecar)}
+            _load_verified(candidate)
+            candidates.append(candidate)
+        except (OSError, ValueError, KeyError, TypeError, AttributeError, RuntimeError, EOFError,
+                pickle.UnpicklingError):
+            continue
+    return sorted(candidates, key=lambda item: (item["created_at_ns"], item["checkpoint_path"]))
+
+
+def find_checkpoint(search_root, mode, expected_identity=None):
+    """Choose the newest save or the lowest-MAE epoch among compatible saves."""
+    if mode not in {"resume_latest", "resume_best"}:
+        raise ValueError("Checkpoint selection mode must be resume_latest or resume_best")
+    candidates = discover_checkpoints(search_root, expected_identity=expected_identity)
+    if not candidates:
+        raise FileNotFoundError("No complete, checksum-valid, compatible full-state checkpoint was found. "
+                                "Choose an explicit warm start/fresh run or repair the checkpoint location; "
+                                "training has not silently reset.")
+    if mode == "resume_latest":
+        return candidates[-1]
+    return min(candidates, key=lambda item: (item["validation_mae_kmh"], -item["created_at_ns"]))
+
+
+def _validate_legacy(payload, config, identity):
+    if payload.get("format_version") != 1:
+        raise ValueError("warm_start expects a legacy format_version=1 best_model.pt")
+    if payload.get("labels_sha256") != identity["labels_sha256"]:
+        raise ValueError("Legacy checkpoint dataset labels do not match")
+    if payload.get("preprocessing") != _PREPROCESSING_ID:
+        raise ValueError("Legacy checkpoint preprocessing does not match")
+    if payload.get("keypoint_order") != ["pivot", "tip"] or payload.get("speed_range_kmh") != [0, 180]:
+        raise ValueError("Legacy checkpoint output definitions do not match")
+    legacy_config = payload["config"]
+    for key in ("input_size", "max_train_samples", "max_val_samples", "seed"):
+        if legacy_config.get(key) != getattr(config, key):
+            raise ValueError(f"Legacy checkpoint differs in {key}; warm start requires the same data selection")
+    if payload.get("best_epoch", 0) < 1:
+        raise ValueError("Legacy checkpoint has no valid best epoch")
+    if not math.isfinite(float(payload["validation_metrics"]["mae_kmh"])):
+        raise ValueError("Legacy checkpoint has no finite validation MAE")
+
+
+def _inference_payload(best, config, integrity, resume_metadata):
+    return {
+        "format_version": 1, "model_state_dict": best["model_state_dict"],
+        "config": asdict(config), "best_epoch": best["epoch"],
+        "validation_metrics": best["validation_metrics"],
+        "labels_sha256": integrity["labels_sha256"], "keypoint_order": ["pivot", "tip"],
+        "speed_range_kmh": [0, 180], "preprocessing": _PREPROCESSING_ID,
+        "architecture": _ARCHITECTURE_ID, "provenance": best["provenance"],
+        "resume_metadata": resume_metadata,
+        "scope": "synthetic validation; independent real camera validation pending",
+    }
+
+
+def train_persistent(config: TrainConfig, *, mode="fresh", search_root=None,
+                     warm_start_path=None, additional_epochs=20,
+                     stop_after_epochs=None, extend_by_epochs=0):
+    """Train with immutable, verified per-epoch checkpoints on mounted Drive.
+
+    fresh ignores all checkpoints and uses config.pretrained for initialization.
+    warm_start imports legacy weights, explicitly resets the optimizer, and sets
+    target_epoch=legacy best_epoch+additional_epochs. resume_latest/resume_best
+    restore a full state, including its fixed target. Only extend_by_epochs adds
+    a new budget. Every invocation requires a new/empty branch output directory.
+
+    Resume is at an epoch boundary. Bitwise reproducibility still depends on the
+    device and deterministic kernels; state restoration never claims otherwise.
+    stop_after_epochs is a test/interruption hook, not an early-stopping policy.
+    """
+    if mode not in {"fresh", "warm_start", "resume_latest", "resume_best"}:
+        raise ValueError(f"Unknown training mode: {mode}")
+    if config.input_size < 64 or config.input_size % 32:
+        raise ValueError("input_size must be >=64 and divisible by 32")
+    if config.batch_size < 1 or config.patience < 1 or config.heatmap_sigma <= 0:
+        raise ValueError("batch_size, patience and heatmap_sigma must be positive")
+    if min(config.head_epochs, config.finetune_epochs, extend_by_epochs) < 0:
+        raise ValueError("Epoch budgets must be nonnegative")
+    if mode == "fresh" and config.head_epochs + config.finetune_epochs < 1:
+        raise ValueError("Fresh training needs at least one epoch")
+    if mode == "warm_start" and (warm_start_path is None or additional_epochs < 1):
+        raise ValueError("warm_start requires a legacy checkpoint and positive additional_epochs")
+    if stop_after_epochs is not None and stop_after_epochs < 0:
+        raise ValueError("stop_after_epochs must be nonnegative")
+    if mode == "fresh" and stop_after_epochs == 0:
+        raise ValueError("A fresh run needs one completed epoch before it has a checkpoint")
+    if extend_by_epochs and mode not in {"resume_latest", "resume_best"}:
+        raise ValueError("extend_by_epochs is only for explicit resumed-budget extensions")
+    out = Path(config.output_dir)
+    if out.exists() and any(out.iterdir()):
+        raise FileExistsError("Choose a new empty output_dir; earlier checkpoints must be preserved")
+    train_records, val_records, integrity = _persistent_data(config)
+    identity = _identity(config, integrity)
+    candidate, restored = None, None
+    if mode.startswith("resume_"):
+        if search_root is None:
+            raise ValueError("Exact resume requires search_root")
+        candidate = find_checkpoint(search_root, mode, identity)
+        restored = _load_verified(candidate)
+    legacy = None
+    if mode == "warm_start":
+        legacy = torch.load(warm_start_path, map_location="cpu", weights_only=True)
+        _validate_legacy(legacy, config, identity)
+    out.mkdir(parents=True, exist_ok=True)
+    _json_write(out / "data_integrity.json", integrity)
+    _json_write(out / "config.json", asdict(config))
+    _seed_everything(config.seed)
+    train_loader = _loader(DashboardDataset(config.data_dir, train_records, config.input_size), config, True)
+    val_loader = _loader(DashboardDataset(config.data_dir, val_records, config.input_size), config)
+    device = _device(config)
+    model = SpeedometerModel(pretrained=config.pretrained if mode == "fresh" else False).to(device)
+    amp_enabled = bool(config.amp and device.type == "cuda")
+    scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)
+    best, history, latest_path = None, [], None
+    metadata = {"mode": mode, "source_checkpoint_path": None, "source_epoch": 0,
+                "optimizer_restored": False, "full_state_restored": False,
+                "initialization": "ImageNet" if config.pretrained else "random",
+                "initial_pretrained": bool(config.pretrained),
+                "extend_by_epochs": int(extend_by_epochs)}
+    state = {"epoch": 0, "stage": "heads" if config.head_epochs else "finetune",
+             "stage_epoch": 0, "stage_best": float("inf"), "stale": 0,
+             "head_budget": config.head_epochs, "finetune_budget": config.finetune_epochs,
+             "target_epoch": config.head_epochs + config.finetune_epochs,
+             "training_complete": False, "completion_reason": None}
+    metrics = None
+    if legacy is not None:
+        model.load_state_dict(legacy["model_state_dict"], strict=True)
+        epoch = int(legacy["best_epoch"])
+        metrics = legacy["validation_metrics"]
+        state.update(epoch=epoch, stage="finetune", target_epoch=epoch + int(additional_epochs),
+                     finetune_budget=int(additional_epochs))
+        metadata.update(source_checkpoint_path=str(Path(warm_start_path)), source_epoch=epoch,
+                        source_sha256=_sha256(warm_start_path), initialization="legacy trained weights",
+                        initial_pretrained=bool(legacy["config"]["pretrained"]),
+                        limitation="Legacy checkpoint has no optimizer/RNG state. Fine-tuning starts with a new optimizer.")
+        best = {"epoch": epoch, "model_state_dict": _cpu_tree(model.state_dict()),
+                "validation_metrics": metrics,
+                "provenance": {"kind": "legacy_baseline", "checkpoint_path": str(warm_start_path),
+                               "sha256": metadata["source_sha256"]}}
+    elif restored is not None:
+        model.load_state_dict(restored["model_state_dict"], strict=True)
+        state, best, history = dict(restored["training_state"]), restored["best_state"], restored["history"]
+        metrics = restored["validation_metrics"]
+        metadata.update(source_checkpoint_path=candidate["checkpoint_path"], source_epoch=state["epoch"],
+                        source_sha256=candidate["sha256"], optimizer_restored=True, full_state_restored=True,
+                        initial_pretrained=restored.get("resume_metadata", {}).get(
+                            "initial_pretrained", bool(restored["config"]["pretrained"])),
+                        initialization="full training state", parent_resume_metadata=restored.get("resume_metadata"))
+        latest_path = candidate["checkpoint_path"]
+        if extend_by_epochs:
+            state["target_epoch"] += int(extend_by_epochs)
+            state["finetune_budget" if state["finetune_budget"] else "head_budget"] += int(extend_by_epochs)
+            state.update(training_complete=False, completion_reason=None, stale=0)
+            # Explicit budget extension begins a new fine-tuning patience window.
+            state["stage_best"] = metrics["mae_kmh"]
+    model.configure_stage(state["stage"])
+    optimizer = _optimizer(model, config, state["stage"])
+    if restored is not None:
+        optimizer.load_state_dict(restored["optimizer_state_dict"])
+        scaler.load_state_dict(restored["scaler_state_dict"])
+        train_loader.generator.set_state(restored["loader_generator_states"]["train"])
+        val_loader.generator.set_state(restored["loader_generator_states"]["validation"])
+        _restore_rng(restored["rng_state"])
+    _json_write(out / "resume_metadata.json", metadata)
+    best_path = out / "best_model.pt"
+
+    def save_best():
+        _save_durable(_inference_payload(best, config, integrity, metadata), best_path,
+                      kind="inference_best", identity=identity, epoch=best["epoch"],
+                      validation_mae_kmh=best["validation_metrics"]["mae_kmh"])
+
+    def save_epoch(kind="epoch_end"):
+        nonlocal latest_path
+        filename = f"epoch_{state['epoch']:05d}_{uuid.uuid4().hex[:12]}.pt"
+        payload = {
+            "format_version": 2, "checkpoint_kind": "full_training_state", "save_reason": kind,
+            "model_state_dict": _cpu_tree(model.state_dict()),
+            "optimizer_state_dict": _cpu_tree(optimizer.state_dict()),
+            "scaler_state_dict": _cpu_tree(scaler.state_dict()),
+            "rng_state": _capture_rng(),
+            "loader_generator_states": {"train": train_loader.generator.get_state().clone(),
+                                        "validation": val_loader.generator.get_state().clone()},
+            "history": list(history), "training_state": dict(state), "best_state": best,
+            "identity": identity, "config": asdict(config), "validation_metrics": metrics,
+            "resume_metadata": metadata, "labels_sha256": integrity["labels_sha256"],
+            "best_epoch": best["epoch"], "torch_version": str(torch.__version__),
+        }
+        saved = _save_durable(payload, out / filename, kind="full_training_state", identity=identity,
+                              epoch=state["epoch"], validation_mae_kmh=metrics["mae_kmh"])
+        latest_path = saved["checkpoint_path"]
+        # Pointers are conveniences only; discovery always validates epoch files.
+        _json_write(out / "latest_checkpoint.json", saved)
+
+    if best is not None:
+        save_best()  # The parent's best remains available even if this branch never improves.
+    if legacy is not None:
+        save_epoch("legacy_warm_start_boundary")
+    started, epochs_this_call = time.time(), 0
+    print(f"{mode}: device={device}; train={len(train_records)}, validation={len(val_records)}; "
+          f"epoch {state['epoch']} -> target {state['target_epoch']}", flush=True)
+    while (state["epoch"] < state["target_epoch"] and not state["training_complete"]
+           and (stop_after_epochs is None or epochs_this_call < stop_after_epochs)):
+        # Transition is performed after the prior boundary was saved. Restoring
+        # that boundary performs the same weight/optimizer transition exactly once.
+        if state["stage"] == "heads" and state["finetune_budget"] and (
+                state["stage_epoch"] >= state["head_budget"] or state["stale"] >= config.patience):
+            model.load_state_dict(best["model_state_dict"])
+            state.update(stage="finetune", stage_epoch=0, stage_best=float("inf"), stale=0)
+            model.configure_stage("finetune")
+            optimizer = _optimizer(model, config, "finetune")
+        model.train()
+        totals, seen = Counter(), 0
+        for batch in train_loader:
+            batch = {key: value.to(device, non_blocking=True) if isinstance(value, torch.Tensor) else value
+                     for key, value in batch.items()}
+            optimizer.zero_grad(set_to_none=True)
+            with torch.autocast(device_type=device.type, enabled=amp_enabled):
+                output = model(batch["image"])
+                loss, components = training_loss(output, batch, config)
+            if not torch.isfinite(loss):
+                raise FloatingPointError("Nonfinite training loss; prior completed checkpoints remain available")
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad], 5.0)
+            scaler.step(optimizer)
+            scaler.update()
+            count = len(batch["speed"])
+            seen += count
+            totals["train_loss"] += float(loss.detach()) * count
+            for name, value in components.items():
+                totals[name] += value * count
+        metrics, _ = evaluate_model(model, val_loader, device)
+        mae = metrics["mae_kmh"]
+        if not math.isfinite(mae):
+            raise FloatingPointError("Nonfinite validation MAE")
+        state["epoch"] += 1
+        state["stage_epoch"] += 1
+        epochs_this_call += 1
+        history.append({"epoch": state["epoch"], "stage": state["stage"],
+                        **{name: value / seen for name, value in totals.items()},
+                        "validation_mae_kmh": mae,
+                        "validation_within_2_kmh_percent": metrics["within_2_kmh_percent"],
+                        "validation_tip_mae_px": metrics["tip_mae_px"]})
+        improved = best is None or mae < best["validation_metrics"]["mae_kmh"]
+        if improved:
+            best = {"epoch": state["epoch"], "model_state_dict": _cpu_tree(model.state_dict()),
+                    "validation_metrics": metrics,
+                    "provenance": {"kind": "training_epoch", "branch_directory": str(out),
+                                   "epoch": state["epoch"]}}
+        if mae < state["stage_best"] - config.min_delta_kmh:
+            state.update(stage_best=mae, stale=0)
+        else:
+            state["stale"] += 1
+        if state["epoch"] >= state["target_epoch"]:
+            state.update(training_complete=True, completion_reason="target_epoch_reached")
+        elif ((state["stage"] == "finetune" and state["stage_epoch"] >= state["finetune_budget"])
+              or (state["stage"] == "heads" and not state["finetune_budget"]
+                  and state["stage_epoch"] >= state["head_budget"])):
+            state.update(training_complete=True, completion_reason="stage_budget_reached")
+        elif state["stale"] >= config.patience and (state["stage"] == "finetune" or not state["finetune_budget"]):
+            state.update(training_complete=True, completion_reason="early_stopping")
+        # Full state is durable before summaries/plots or mutable inference views.
+        save_epoch()
+        if improved:
+            save_best()
+        _save_csv(out / "history.csv", history)
+        print(f"Epoch {state['epoch']:02d} {state['stage']:8s} loss={totals['train_loss']/seen:.4f} "
+              f"val MAE={mae:.3f}; within2={metrics['within_2_kmh_percent']:.1f}%; checkpoint saved", flush=True)
+        if stop_after_epochs is not None and epochs_this_call >= stop_after_epochs:
+            break
+    if best is None:
+        raise RuntimeError("No model was evaluated; no usable result exists")
+    model.load_state_dict(best["model_state_dict"])
+    evaluation, rows = evaluate_model(model, val_loader, device)
+    profiles = {profile: metrics_from_rows([r for r in rows if r["profile"] == profile])
+                for profile in sorted({r["profile"] for r in rows})}
+    bins = {}
+    for lower in range(0, 180, 20):
+        members = [r for r in rows if lower <= r["target_speed_kmh"] < lower + 20
+                   or (lower == 160 and r["target_speed_kmh"] == 180)]
+        if members:
+            bins[f"{lower}_to_{lower + 20}_kmh"] = metrics_from_rows(members)
+    regions = {}
+    for influenced in (False, True):
+        members = [r for r in rows if r["inferred_60_influence"] == influenced]
+        if members:
+            regions["inferred_60_region" if influenced else "other_regions"] = metrics_from_rows(members)
+    report = {
+        "metrics": evaluation, "metrics_by_profile": profiles, "metrics_by_speed_bin": bins,
+        "metrics_by_calibration_region": regions, "best_epoch": best["epoch"],
+        "epochs_run": state["epoch"], "epochs_this_call": epochs_this_call,
+        "target_epoch": state["target_epoch"], "training_complete": state["training_complete"],
+        "completion_reason": state["completion_reason"], "elapsed_seconds": time.time() - started,
+        "device": str(device), "pretrained": metadata["initial_pretrained"],
+        "training_samples": len(train_records), "validation_samples": len(val_records),
+        "labels_sha256": integrity["labels_sha256"], "torch_version": str(torch.__version__),
+        "config": asdict(config), "resume_metadata": metadata, "best_provenance": best["provenance"],
+        "latest_checkpoint_path": str(latest_path), "checkpoint_path": str(best_path),
+        "metrics_path": str(out / "metrics.json"),
+        "predictions_path": str(out / "validation_predictions.csv"),
+        "worst_predictions_path": str(out / "worst_predictions.png"),
+        "learning_curves_path": str(out / "learning_curves.png"),
+        "speed_bin_convention": "20-km/h bins are lower-inclusive, upper-exclusive; final bin includes 180",
+        "limitation": "Shared synthetic master: development validation only, not evidence of 98% real accuracy.",
+    }
+    _json_write(out / "metrics.json", report)
+    save_evaluation_artifacts(rows, history, config.data_dir, out)
+    return report

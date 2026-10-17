@@ -35,15 +35,19 @@ Labels and audit metadata are available in [dataset_metadata](dataset_metadata/)
 ## Train in Google Colab
 
 1. Open the [training notebook directly in Google Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb).
-2. Choose **Runtime > Change runtime type > T4 GPU**, then **Run all**.
-3. The notebook automatically downloads `speedometer_bw500.zip` from the public GitHub release and verifies its SHA-256 checksum before extraction. It reuses a cached ZIP only when its checksum matches.
-4. Keep the generated results ZIP after the experiments finish.
+2. Choose **Runtime > Change runtime type > T4 GPU**, review the restart controls, then **Run all**. Authorize the Google Drive mount when prompted.
+3. The notebook downloads the dataset from the public GitHub release and verifies its SHA-256 checksum. Images remain on the runtime disk for training speed.
+4. Every completed epoch is saved to **My Drive / SpeedometerTraining**, including weights, optimizer, AMP scaler, random state and training progress. A compact results ZIP contains the best inference model and reports; the full epoch checkpoints stay in Drive.
 
-An existing notebook saved in Google Drive is a separate copy and does not automatically receive these changes. Open the GitHub notebook link above to use the updated download code; save a new copy to Drive if desired.
+An existing notebook saved in Google Drive is a separate copy and does not automatically receive these changes. Open the GitHub notebook link above for the latest code, or use the newly prepared Drive copy.
 
-The self-contained notebook trains MobileNetV3-Small with speed regression and supervised needle pivot/tip heatmaps. It compares nested subsets of 100, 250, and 400 training images using the same 100 validation images. The default input remains 512 x 512 grayscale, repeated across three channels for pretrained-weight compatibility.
+The self-contained notebook trains MobileNetV3-Small with speed regression and supervised needle pivot/tip heatmaps. Input remains 512 x 512 grayscale, repeated across three channels. It now defaults to continuing the 400-image experiment, using the same 100 synthetic validation images.
 
-See [training instructions](training_pilot/README.md) for configuration, metrics, and inference details. Local software checks covered data/label integrity, gradients, pretrained 512-pixel inference, and a small end-to-end notebook run. A full Colab GPU training run has not yet been verified.
+Choose **resume_latest** after a disconnect, **resume_best** to rewind to the checkpoint with the lowest validation MAE, or **fresh** to ignore previous training. Fresh initialization can use ImageNet weights or random weights. A fresh experiment uses a separate name and preserves older runs. Resume restores the saved epoch target; rerunning does not automatically add another training budget.
+
+For this project's existing pilot, the private Drive file `pilot_best_epoch29.pt` supplies the initial weights. Its checksum is verified before a continuation of up to 20 more epochs. That old checkpoint contains weights only, so the first continuation creates a new optimizer; subsequent full checkpoints restore optimizer and random state. The trained weights are not distributed in this public repository. Other users should select **fresh** and a new experiment name.
+
+See [training instructions](training_pilot/README.md) for configuration, checkpoint recovery and inference. The original Colab pilot completed; its 400-image model reached 2.684 km/h MAE and 47% within ±2 km/h on the synthetic validation set. Local checks cover data integrity, gradients, full-state interruption/resume, checkpoint selection and corruption handling, plus notebook execution. These software checks do not establish real-camera accuracy.
 
 ## Provenance and evaluation limits
 

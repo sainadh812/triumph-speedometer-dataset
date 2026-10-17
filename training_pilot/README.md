@@ -1,95 +1,104 @@
-# Speedometer training pilot
+# Speedometer training with Google Drive recovery
 
-This pilot trains a compact neural network to read the synthetic Triumph dashboard dataset. It predicts a continuous speed in km/h and the needle pivot and tip positions. The first full training run belongs in Google Colab; no full-training result or real-camera accuracy is claimed here.
+The self-contained `Speedometer_Training_Colab.ipynb` continues the existing 400-image pilot and saves complete training state to Google Drive after each completed epoch. The same 100 synthetic validation images, representing 50 pose groups, are retained.
 
-## Run in Google Colab
+## Start or resume in Colab
 
-1. Open the [training notebook directly in Google Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb).
-2. Choose **Runtime > Change runtime type > T4 GPU**, then save the setting. An available CUDA GPU can also be used.
-3. Choose **Runtime > Run all**. The notebook automatically downloads `speedometer_bw500.zip` from the public GitHub release and verifies its SHA-256 checksum before extracting it. It reuses a cached ZIP only when its checksum matches.
-4. Keep the notebook running through its three experiments and result export. Each experiment prints training progress and synthetic validation errors.
-5. The notebook creates a results ZIP and requests its download at completion. Keep that ZIP before disconnecting the Colab runtime. Automatic download is skipped in local mode.
+1. Open the [latest notebook in Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb).
+2. Select **Runtime > Change runtime type > T4 GPU**, then **Run all**.
+3. Authorize the Google Drive mount when prompted. The notebook verifies that its Drive folder can be written and read.
+4. Leave `TRAIN_MODE = "resume_latest"` and `EXPERIMENT_NAME = "speedometer_400_continuation_v1"` for the default continuation.
+5. Inspect the final metrics and prediction overlays. A compact results ZIP is saved to Drive and offered for download.
 
-An existing notebook saved in Google Drive is a separate copy and does not automatically receive these changes. Open the GitHub notebook link above to use the updated download code; save a new copy to Drive if desired.
+The fixed 500-image dataset downloads automatically from the [public release](https://github.com/sainadh812/triumph-speedometer-dataset/releases/tag/v1.0.0). Its archive, source labels and model inputs are checked against recorded checksums. No dataset upload or GitHub token is needed. A previously copied notebook in Drive does not update automatically; use the latest linked notebook when adopting this workflow.
 
-The dataset comes from the [v1.0.0 release asset](https://github.com/sainadh812/triumph-speedometer-dataset/releases/download/v1.0.0/speedometer_bw500.zip); no GitHub sign-in or manual dataset upload is required. The notebook contains its training code, so no repository checkout or separate upload of `train_core.py` is needed. Its first pretrained-model initialization also needs internet access to obtain MobileNet weights. If that download fails, training stops with a clear error instead of silently starting with random weights.
+The approved legacy seed must be at:
 
-## What the pilot measures
-
-The dataset has **400 training images and 100 validation images**. Variants of a shared clean needle pose stay in one split. The 100 validation images represent **50 pose groups**, and all images were derived from one synthetic source dashboard.
-
-The notebook trains fresh models on **100, 250, and 400 training images**, always evaluating against the same 100 validation images. These training subsets are nested, preserve complete pose groups, and use the same random seed. The smaller subset is contained in the larger one. This comparison shows whether adding images from the present generator is helping; it does not establish generalization to a real camera.
-
-Do not move validation samples into training or choose different validation images between experiments. These validation results help select the model and improve the dataset. They are not a final independent test.
-
-The proposed accuracy target is **at least 98% of readable real test frames within ±2 km/h of a verified dashboard reading**, with unreadable frames reported separately. The notebook reports the percentage within ±1, ±2, and ±5 km/h. It also reports MAE, RMSE, 95th-percentile absolute error, maximum error, bias, and pivot/tip position error. **A low MAE is not the same as 98% within ±2 km/h.**
-
-No real dashboard video has been provided yet. A separate real recording session is still needed for development validation, followed by an independent session for final testing. Synthetic validation alone cannot certify the 98% target or measure unreadable-frame handling.
-
-## Model and training settings
-
-| Setting | Default |
-|---|---|
-| Input | 512 × 512 grayscale dashboard image |
-| Encoder | ImageNet-pretrained MobileNetV3-Small |
-| Speed output | Continuous, sigmoid-bounded to 0–180 km/h |
-| Needle outputs | Pivot and tip heatmaps at 128 × 128, decoded to subpixel coordinates |
-| Batch size | 8 |
-| First stage | Up to 5 epochs training the new heads with the encoder frozen |
-| Second stage | Up to 25 epochs fine-tuning the final four encoder blocks and the heads |
-| Optimizer | AdamW; lower learning rate for the unfrozen encoder |
-| Stopping rule | Stop a stage after 7 epochs without material validation MAE improvement |
-| Saved model | Checkpoint with the lowest validation MAE across both stages |
-
-Grayscale pixels are repeated into three identical channels, then normalized with the ImageNet channel means and standard deviations. This retains compatibility with the pretrained encoder; it does not add color information. The source 512 × 512 model inputs are not center-cropped.
-
-The spatial decoder learns where the needle pivot and tip appear. The speed head uses encoder features and the predicted keypoint coordinates. Training combines speed Huber loss, Gaussian heatmap supervision, and coordinate loss. The auxiliary needle outputs support visual inspection; they are not a calibrated confidence score or an unreadability detector.
-
-Batch-normalization running statistics in the encoder remain frozen, including during fine-tuning, because the pilot uses small batches. The decoder uses group normalization. Mixed precision is enabled on CUDA GPUs. Seeds are recorded, although hardware and library differences can still cause small run-to-run differences.
-
-The generator already applied lighting, blur, noise, and camera variations. The training module adds no further geometric augmentation, so the supplied keypoint labels stay aligned with their images. Hash, image-mode, coordinate, sample-count, and pose-group checks run before training.
-
-## Results to inspect
-
-Each experiment exports:
-
-- `best_model.pt`: the selected weights plus configuration, preprocessing notes, and source-label checksum.
-- `metrics.json`: overall metrics and breakdowns by appearance profile, speed range, and the region influenced by the inferred 60 km/h anchor.
-- `validation_predictions.csv`: target/predicted speeds and needle coordinates for every validation sample.
-- `worst_predictions.png`: the largest speed errors, with green label overlays and magenta prediction overlays.
-- `learning_curves.png` and `history.csv`: training loss and validation progress.
-- `config.json` and `data_integrity.json`: settings, checksums, and exact sample membership.
-
-The notebook also exports a comparison CSV and packages its results into a ZIP. Compare the **±2 km/h percentage and error distribution** across dataset sizes, then inspect the worst examples. Persistent errors around a particular speed or appearance may need better labels or new source examples, rather than more copies of similar images.
-
-## Local checks and inference
-
-`train_core.py` exposes `TrainConfig`, `train_experiment`, `load_model`, and `predict_image`. For example:
-
-```python
-from train_core import TrainConfig, train_experiment
-
-result = train_experiment(TrainConfig(
-    data_dir="../bw_dataset_500",
-    output_dir="./runs/pilot_400",
-))
+```text
+/content/drive/MyDrive/SpeedometerTraining/pilot_best_epoch29.pt
 ```
 
-Use a new output directory for every experiment; an existing best checkpoint is protected from accidental overwrite. The portable data loader defaults to zero worker processes, which also works on Windows.
+Its required SHA256 is `a2ed22a3feb4d4d5f8552bc31af6c5051b66503840ab8a22d3f361a5e6a1dd36`. The notebook verifies those bytes before importing them.
 
-A short local smoke configuration uses **128 × 128 inputs, 8 training images, 4 validation images, two epochs, and random initial weights**. Its purpose is to check that loading, gradients, checkpoint saving, evaluation, and plotting work. Smoke-test metrics are not evidence of model quality, and smoke outputs must remain separate from Colab experiment results.
+## Three training modes
 
-For inference, load a completed full-run checkpoint and pass a PIL image or image path:
+| Mode | Behavior |
+|---|---|
+| `resume_latest` | Restore the most recently published verified, compatible full-state checkpoint. This is the normal restart setting. |
+| `resume_best` | Restore the complete checkpoint with the lowest validation MAE. This rewinds model, optimizer and training counters together, while retaining the saved target epoch. |
+| `fresh` | Create a new experiment from ImageNet weights, or random weights when `FRESH_PRETRAINED = False`. A new experiment name is required. |
+
+For a fresh experiment, choose a new name such as `speedometer_fresh_v2`. Later switch to `resume_latest` while keeping that name. Existing experiment folders and checkpoints are preserved. Fresh training never overwrites them.
+
+The first setup writes `experiment_config.json`. Resume uses that saved configuration, including batch size, losses, epoch-stage budgets, sample selection and seed. Changing `FRESH_PRETRAINED` does not change an already initialized model. Input and output paths are rebound to the current session and its new run folder.
+
+Exact resume rejects a changed dataset, incompatible training configuration, changed device type, or different recorded versions of PyTorch, torchvision, NumPy or Pillow. A new Colab runtime may update dependencies; if versions differ, the notebook shows the saved and current versions and stops. Restore the compatible environment before continuing. It does not automatically replace CUDA packages or pretend that a new initialization is a continuation. Source hashes are recorded for provenance; use the same implementation for a reproducible trajectory.
+
+## The initial legacy import and fixed budget
+
+The existing best checkpoint was saved at **epoch 29**. It contains model weights and metrics, but lacks optimizer, mixed-precision scaler and random-generator state. Therefore the first import is an explicit **warm start with a new optimizer**, rather than an exact continuation of the original optimizer trajectory.
+
+The default continuation uses **20 additional fine-tuning epochs**, giving a fixed absolute target of **epoch 49**, with early stopping enabled. A full-state recovery checkpoint is saved at the imported boundary before new epochs run. Subsequent sessions restore full state from these new checkpoints.
+
+Rerunning `resume_latest` does **not** grant another 20 epochs. It finishes the remaining saved budget, or performs evaluation without additional training if that budget is already complete. A completed early-stopping decision is also retained. `EXTEND_BY_EPOCHS` defaults to **0**; a positive value deliberately adds a new budget. Reset that setting to 0 before ordinary restarts so the extension is not requested again.
+
+Legacy import occurs only when an experiment has no full-state checkpoint artifacts and its manifest permits that import. If files exist but none is a verified compatible full-state checkpoint, the notebook fails clearly. It never treats corruption as permission to restart from legacy or fresh weights.
+
+## What survives a disconnect
+
+Each invocation receives a unique folder under:
+
+```text
+MyDrive/SpeedometerTraining/experiments/<experiment_name>/runs/<unique_run_id>/
+```
+
+Every completed epoch saves model weights, optimizer state, mixed-precision scaler state, Python/NumPy/PyTorch/CUDA random-generator states, data-loader generator states, training history, stage progress, early-stopping counters, the best model so far and the fixed target epoch.
+
+Checkpoints are staged, copied to Drive, verified by SHA256 and then published with an `epoch_*.complete.json` sidecar. Discovery verifies the bytes again before restoration. Incomplete or corrupt uploads are preserved and skipped when an older compatible verified checkpoint exists; their paths are printed. If no valid checkpoint remains, training stops for recovery rather than silently resetting.
+
+A mid-epoch interruption loses that unfinished epoch's work; recovery starts from the last completed verified epoch. Drive's mounted filesystem cannot guarantee that a remote upload finishes at the exact instant of disconnection. Retaining previous epoch files provides independent recovery points. Keep sufficient Drive space for the growing set of full-state files.
+
+## Model and settings
+
+| Setting | Default continuation |
+|---|---|
+| Input | 512 × 512 grayscale dashboard crop |
+| Encoder | MobileNetV3-Small, initialized from the trained legacy model |
+| Outputs | Continuous speed, needle pivot and needle tip |
+| Spatial supervision | Two 128 × 128 heatmaps and coordinate loss |
+| Samples | 400 training / 100 synthetic validation |
+| Batch size | 8 |
+| Training | Fine-tune the final four encoder blocks and output heads |
+| Optimizer | AdamW, with a smaller learning rate for encoder parameters |
+| Stopping | Saved target or early stopping after 7 epochs without material MAE improvement |
+
+Fresh experiments start with 5 head-training epochs and up to 25 fine-tuning epochs. Grayscale is repeated into three identical channels and ImageNet-normalized to reuse pretrained features; no color information is added. Encoder batch-normalization running statistics stay frozen. The dataset already contains lighting, blur, noise and camera variations, so the training module applies no additional geometry that could misalign labels.
+
+The speed head combines image features and predicted needle coordinates. It does not directly convert an uncorrected perspective angle to speed. The auxiliary heatmaps support inspection; they are not confidence scores or an unreadability detector.
+
+## Inspect and export results
+
+Each run produces `metrics.json`, per-frame `validation_predictions.csv`, `history.csv`, learning curves, worst-prediction overlays, configuration and provenance reports, and the selected `best_model.pt` for inference. Metrics also separate appearance profiles, speed bins and the region affected by the inferred 60 km/h anchor. The green line in visual reports is the label; magenta is the predicted needle.
+
+The compact results ZIP includes the best inference checkpoint, reports, plots, source code and `drive_paths.json`. It excludes duplicate per-epoch full-state checkpoints, which remain in Drive. **The ZIP alone does not provide exact training resume; retain the Drive experiment folder.** Local smoke runs do not trigger browser downloads.
+
+The proposed real-world target remains **at least 98% of readable frames within ±2 km/h of a verified dashboard reading**, with unreadable frames reported separately. MAE is average absolute error and is different from the percentage meeting that tolerance. Reports include both, plus RMSE, 95th-percentile error, maximum error and keypoint distances.
+
+Synthetic validation is development evidence, not a real-world test. Independent real dashboard footage has not yet been supplied. Camera crops must match training framing, and real labeled recording sessions are still needed before judging live-feed accuracy or adding temporal smoothing.
+
+## Developer checks
+
+`build_notebook.py` embeds the current `train_core.py` and `notebook_workflow.py` and validates notebook code cells. `check_notebook.py` executes the generated notebook against a local mock Drive using 128-pixel inputs, 8 training images, 4 validation images, random initialization and two epochs. It then reruns with `resume_latest`, verifies the fixed target does not expand, checks full-state fields and hashes, and inspects compact ZIP contents. This is a software smoke check, not a model-performance experiment or a remote Drive upload test.
+
+The persistent core API is:
 
 ```python
-from train_core import load_model, predict_image
-
-model, checkpoint = load_model("./runs/pilot_400/best_model.pt")
-prediction = predict_image(
-    model,
-    "dashboard_crop.png",
-    input_size=checkpoint["config"]["input_size"],
+result = train_persistent(
+    config,
+    mode="resume_latest",  # fresh, resume_latest, resume_best, or explicit warm_start
+    search_root=experiment_directory,
+    extend_by_epochs=0,
 )
 ```
 
-Real frames must be cropped and framed like the training dashboard. The current model does not detect the dashboard in an arbitrary full camera frame. Returned pixel keypoints refer to the resized model input; normalized keypoints use the same zero-based endpoint convention as the training labels. Evaluate raw frame predictions before adding temporal smoothing to a live feed.
+For inference, `load_model(best_model_path)` and `predict_image(model, image, input_size=512)` apply the saved model to a matched dashboard crop. Keypoint pixel coordinates refer to the resized input. The model does not locate the dashboard in an arbitrary full camera frame.

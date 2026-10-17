@@ -1,4 +1,4 @@
-"""Build a self-contained, uploadable Colab notebook from the tested core."""
+"""Build the self-contained Drive-persistent Colab notebook."""
 from pathlib import Path
 import hashlib
 import nbformat as nbf
@@ -6,45 +6,56 @@ import nbformat as nbf
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent
 core = (ROOT / "train_core.py").read_text(encoding="utf-8")
-core_hash = hashlib.sha256(core.encode("utf-8")).hexdigest()
+workflow = (ROOT / "notebook_workflow.py").read_text(encoding="utf-8")
+core_hash = hashlib.sha256(core.encode()).hexdigest()
+workflow_hash = hashlib.sha256(workflow.encode()).hexdigest()
 cells = []
 
 
-def md(text):
-    cells.append(nbf.v4.new_markdown_cell(text.strip()))
+def md(source):
+    cells.append(nbf.v4.new_markdown_cell(source.strip()))
 
 
-def code(text, hidden=False):
-    cell = nbf.v4.new_code_cell(text.strip())
+def code(source, hidden=False):
+    cell = nbf.v4.new_code_cell(source.strip())
     if hidden:
-        cell.metadata.update({"cellView": "form"})
+        cell.metadata["cellView"] = "form"
     cells.append(cell)
 
 
 md("""
-# Triumph speedometer — first training experiment
+# Triumph speedometer — training saved to Google Drive
 
-**500 grayscale images: 400 training + 100 synthetic validation.** This notebook trains a pretrained MobileNetV3-Small with a speed output and two needle keypoint heatmaps. It compares nested training sets of **100, 250, and 400 images**, while keeping the same validation set.
+**Continue the existing 400-image model and preserve training across Colab sessions.**
 
-1. In Colab, choose **Runtime → Change runtime type → T4 GPU** (or another available GPU).
-2. Choose **Runtime → Run all**.
-3. The notebook automatically downloads **`speedometer_bw500.zip`** from the public GitHub release and verifies its checksum. No dataset upload or GitHub token is needed.
+1. Choose **Runtime → Change runtime type → T4 GPU**, then **Run all**.
+2. Authorize the Google Drive mount when Colab asks. Dataset files download automatically from the public release.
+3. Leave **`resume_latest`** selected to continue the newest completed epoch. Full training state is saved to Drive after every completed epoch.
 
-[Open the latest notebook from GitHub in Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb). A notebook previously saved to Drive is a separate copy and will not update automatically.
+Default experiment: `speedometer_400_continuation_v1`. On its first run, the notebook imports the verified `SpeedometerTraining/pilot_best_epoch29.pt` from Drive. That older file has model weights but no optimizer/RNG state, so the optimizer resets **once**. Its fixed continuation budget is **20 additional epochs: epoch 29 → epoch 49**, subject to early stopping. Rerunning retains that target; it does not add another 20 epochs.
 
-**Output:** best checkpoints, speed/keypoint metrics, prediction tables, learning curves, worst-case overlays, and a results ZIP. The ZIP is offered for download after training. Keep it before disconnecting the runtime.
+Later restarts restore model, optimizer, mixed-precision scaler, random generators, data-loader state, training history and early-stopping counters. Old runs remain intact. A disconnect during an epoch resumes from the last verified completed epoch.
 
-The proposed target is **98% of real readable frames within ±2 km/h of the verified dial reading**. This notebook reports the same tolerance on **synthetic development validation only**. Its 100 validation images represent 50 paired poses from the same reconstructed source; they do not establish live-camera accuracy. Real footage has not been supplied.
+The model uses 400 training images and the same 100 synthetic validation images (50 pose groups). The **98% within ±2 km/h** target still needs independently labeled real footage. Synthetic validation does not establish live-camera accuracy.
 
-Sources: [Colab runtime FAQ](https://research.google.com/colaboratory/faq.html), [MobileNetV3-Small pretrained weights](https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.mobilenet_v3_small.html).
+[Latest notebook in Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb) · [Dataset release](https://github.com/sainadh812/triumph-speedometer-dataset/releases/tag/v1.0.0)
 """)
 md("""
-## 1. Check the runtime
+## 1. Runtime and training mode
 
-The default run requires a GPU. Colab's existing PyTorch installation is used without replacing its CUDA packages. A separate smoke mode exists for local software checks; smoke results are **not** model performance.
+- **`resume_latest`** restores the most recently published complete epoch, including its optimizer state.
+- **`resume_best`** restores the complete epoch with the lowest validation MAE. This intentionally rewinds training state and retains the original target epoch.
+- **`fresh`** initializes a new model from ImageNet weights, or random weights if `FRESH_PRETRAINED=False`. Use a **new experiment name**, for example `speedometer_fresh_v2`; that configuration is reused on later resumes.
+
+Existing experiments reuse their saved configuration; changing a fresh-only setting does not alter a resumed run. Exact continuation requires matching dependency versions, dataset, device type and training settings. Broken uploads are skipped only when a verified compatible recovery checkpoint exists. No valid checkpoint means an explicit error, never a silent fresh model.
 """)
 code("""
-import os, sys, json, time, hashlib, zipfile, csv, importlib.util
+#@title Training mode and experiment
+TRAIN_MODE = "resume_latest" #@param ["resume_latest", "resume_best", "fresh"]
+EXPERIMENT_NAME = "speedometer_400_continuation_v1" #@param {type:"string"}
+FRESH_PRETRAINED = True #@param {type:"boolean"}
+# Fresh requires a NEW experiment name; later resume that same name.
+import os, sys, json, time, hashlib, zipfile, importlib.util, shutil
 from pathlib import Path
 import torch, torchvision
 import numpy as np
@@ -56,271 +67,236 @@ from IPython.display import display, Image as DisplayImage
 IN_COLAB = importlib.util.find_spec('google.colab') is not None if importlib.util.find_spec('google') else False
 RUN_MODE = os.environ.get('SPEEDOMETER_RUN_MODE', 'pilot')
 assert RUN_MODE in ('pilot', 'smoke')
+TRAIN_MODE = os.environ.get('SPEEDOMETER_TRAIN_MODE', 'fresh' if RUN_MODE == 'smoke' else TRAIN_MODE)
+EXPERIMENT_NAME = os.environ.get('SPEEDOMETER_EXPERIMENT', 'smoke_persistence_v1' if RUN_MODE == 'smoke' else EXPERIMENT_NAME)
+IMPORT_PILOT_IF_MISSING = True
+# Leave at 0 for normal resume. A positive value explicitly adds a NEW budget.
+EXTEND_BY_EPOCHS = 0
+
 WORK_DIR = Path(os.environ.get('SPEEDOMETER_WORK_DIR', '/content/speedometer_work' if IN_COLAB else str(Path.cwd() / 'speedometer_work')))
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 ZIP_PATH = Path(os.environ.get('SPEEDOMETER_DATASET_ZIP', '/content/speedometer_bw500.zip' if IN_COLAB else str(Path.cwd() / 'speedometer_bw500.zip')))
 DATASET_URL = 'https://github.com/sainadh812/triumph-speedometer-dataset/releases/download/v1.0.0/speedometer_bw500.zip'
 EXPECTED_ZIP_SHA256 = '92e773ec1ccee15a455a78453e8e5cfe81d04e2d93a57ff83fcea807b6ab3e27'
 EXPECTED_LABELS_SHA256 = 'e77ea6f7354597008bec89b9c98acf8eca03ca76310921c53b2c822f1d2ef195'
-
-print('Mode:', RUN_MODE, '| Python:', sys.version.split()[0], '| PyTorch:', torch.__version__, '| torchvision:', torchvision.__version__)
+print('Mode:', RUN_MODE, TRAIN_MODE, '| torch:', torch.__version__, '| torchvision:', torchvision.__version__)
 print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'not connected')
 if not hasattr(torch.amp, 'GradScaler'):
-    raise RuntimeError('This notebook needs PyTorch 2.3 or newer; reconnect to a current Colab runtime.')
+    raise RuntimeError('Use a current Colab PyTorch runtime with torch.amp.GradScaler.')
 if RUN_MODE == 'pilot' and not torch.cuda.is_available():
-    raise RuntimeError('Select Runtime > Change runtime type > T4 GPU, reconnect, then Run all. No CPU pilot was started.')
+    raise RuntimeError('Select Runtime > Change runtime type > T4 GPU and Run all again.')
 if RUN_MODE == 'smoke':
     torch.set_num_threads(min(4, os.cpu_count() or 1))
-    print('SMOKE CHECK ONLY: short random-weight run, not an accuracy experiment.')
+    print('Local smoke check only: 128 pixels, 8/4 images, 2 epochs, random weights. Not an accuracy result.')
 """)
 md("""
-## 2. Download and verify the dataset
+## 2. Mount Drive and load the implementation
 
-The public [GitHub release](https://github.com/sainadh812/triumph-speedometer-dataset/releases/tag/v1.0.0) supplies the fixed 500-image archive (about 101 MB). A verified local copy is reused on reruns. Otherwise, the archive is downloaded to a temporary file, checked, and then moved into place. Interrupted downloads can be retried by rerunning this cell.
+Authorize Drive access so checkpoints can survive a runtime reset. Files are saved under **MyDrive/SpeedometerTraining/experiments/**. Each invocation receives a unique run folder. Local smoke mode uses a mock Drive directory and does not request Google authorization.
 
-All 500 model inputs and the original split labels will be checked. Captions and preview images are excluded from training. No login or token is required.
+The complete implementation is embedded here. Inputs remain 512 × 512; grayscale is repeated into three channels and ImageNet-normalized. A spatial decoder predicts pivot/tip heatmaps, and a speed head predicts continuous km/h. Batch-normalization running statistics stay frozen. Existing image augmentations and labels are preserved.
+""")
+code("""
+if RUN_MODE == 'smoke':
+    DRIVE_ROOT = Path(os.environ.get('SPEEDOMETER_DRIVE_ROOT', str(WORK_DIR / 'mock_drive' / 'SpeedometerTraining')))
+elif IN_COLAB:
+    from google.colab import drive
+    drive.mount('/content/drive')
+    if not os.path.ismount('/content/drive') or not Path('/content/drive/MyDrive').is_dir():
+        raise RuntimeError('Google Drive is not mounted. Check authorization and rerun; no temporary checkpoint folder was created.')
+    DRIVE_ROOT = Path('/content/drive/MyDrive/SpeedometerTraining')
+else:
+    raise RuntimeError('The full pilot uses Colab with mounted Drive. Local mode is for smoke checks.')
+LEGACY_CHECKPOINT = DRIVE_ROOT / 'pilot_best_epoch29.pt'
+print('Persistent experiment root:', DRIVE_ROOT)
+""")
+code("#@title Load embedded training and persistence modules\nTRAINING_CORE_SOURCE = " + repr(core)
+     + "\nWORKFLOW_SOURCE = " + repr(workflow)
+     + "\nEXPECTED_CORE_SHA256 = " + repr(core_hash)
+     + "\nEXPECTED_WORKFLOW_SHA256 = " + repr(workflow_hash) + "\n" + """
+def load_embedded(name, filename, source, expected_hash):
+    assert hashlib.sha256(source.encode('utf-8')).hexdigest() == expected_hash
+    path = WORK_DIR / filename
+    path.write_text(source, encoding='utf-8')
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module, path
+
+training, module_path = load_embedded('speedometer_core', 'train_core.py', TRAINING_CORE_SOURCE, EXPECTED_CORE_SHA256)
+workflow, workflow_path = load_embedded('speedometer_workflow', 'notebook_workflow.py', WORKFLOW_SOURCE, EXPECTED_WORKFLOW_SHA256)
+workflow.ensure_writable(DRIVE_ROOT)
+print('Drive write/read check passed; embedded modules loaded.')
+""", hidden=True)
+md("""
+## 3. Download and verify the fixed dataset
+
+The 101 MB public archive is downloaded only when a verified local copy is unavailable. Dataset SHA256, individual input hashes, coordinates and group separation are checked. No token or dataset upload is required.
 """)
 code("""
 import tempfile
 import requests
 
-def file_sha256(path):
-    h = hashlib.sha256()
-    with Path(path).open('rb') as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b''):
-            h.update(block)
-    return h.hexdigest()
-
 def download_dataset(url, destination, expected_sha256, attempts=3):
     destination = Path(destination)
-    if destination.is_file() and file_sha256(destination) == expected_sha256:
+    if destination.is_file() and workflow.file_sha256(destination) == expected_sha256:
         print('Using the verified cached dataset:', destination)
         return
     destination.parent.mkdir(parents=True, exist_ok=True)
     for attempt in range(1, attempts + 1):
-        with tempfile.NamedTemporaryFile(prefix=destination.name + '.', suffix='.part',
-                                         dir=destination.parent, delete=False) as temporary:
-            partial_path = Path(temporary.name)
+        with tempfile.NamedTemporaryFile(prefix=destination.name + '.', suffix='.part', dir=destination.parent, delete=False) as handle:
+            partial = Path(handle.name)
         try:
-            print(f'Downloading dataset from GitHub (attempt {attempt}/{attempts})...')
-            downloaded = 0
-            next_progress = 25 * 1024 * 1024
-            with requests.get(url, stream=True, timeout=(30, 60)) as response:
+            print(f'Downloading dataset: attempt {attempt}/{attempts}')
+            with requests.get(url, stream=True, timeout=(30,60)) as response:
                 response.raise_for_status()
-                with partial_path.open('wb') as handle:
-                    for block in response.iter_content(chunk_size=1024 * 1024):
+                with partial.open('wb') as target:
+                    for block in response.iter_content(1024*1024):
                         if block:
-                            handle.write(block)
-                            downloaded += len(block)
-                            if downloaded >= next_progress:
-                                print(f'  {downloaded / 1_000_000:.0f} MB downloaded')
-                                next_progress += 25 * 1024 * 1024
-            if file_sha256(partial_path) != expected_sha256:
-                raise ValueError('Downloaded dataset checksum does not match the approved archive.')
-            partial_path.replace(destination)
-            print(f'Downloaded and verified {downloaded / 1_000_000:.1f} MB.')
+                            target.write(block)
+            if workflow.file_sha256(partial) != expected_sha256:
+                raise ValueError('Dataset checksum mismatch')
+            partial.replace(destination)
             return
         except (requests.RequestException, OSError, ValueError) as error:
             if attempt == attempts:
-                raise RuntimeError('Dataset download failed. Check the connection and rerun this cell.') from error
-            print('Download did not complete or verify; retrying...')
-            time.sleep(2 * attempt)
+                raise RuntimeError('Dataset download failed; check the connection and rerun this cell.') from error
+            time.sleep(attempt*2)
         finally:
-            partial_path.unlink(missing_ok=True)
+            partial.unlink(missing_ok=True)
 
 download_dataset(DATASET_URL, ZIP_PATH, EXPECTED_ZIP_SHA256)
-
-if file_sha256(ZIP_PATH) != EXPECTED_ZIP_SHA256:
-    raise ValueError('Dataset checksum mismatch; rerun this cell to download the approved archive.')
-
 with zipfile.ZipFile(ZIP_PATH) as archive:
     if archive.testzip() is not None:
-        raise ValueError('The dataset archive failed its integrity check.')
+        raise ValueError('Dataset archive is damaged')
     for entry in archive.infolist():
-        target = (WORK_DIR / entry.filename).resolve()
-        if not target.is_relative_to(WORK_DIR.resolve()) or not entry.filename.startswith('bw_dataset_500/'):
-            raise ValueError('Unexpected path in the dataset archive.')
+        destination = (WORK_DIR / entry.filename).resolve()
+        if not destination.is_relative_to(WORK_DIR.resolve()) or not entry.filename.startswith('bw_dataset_500/'):
+            raise ValueError('Unexpected dataset archive path')
     archive.extractall(WORK_DIR)
-
 DATA_DIR = WORK_DIR / 'bw_dataset_500'
-if file_sha256(DATA_DIR / 'labels.json') != EXPECTED_LABELS_SHA256:
-    raise ValueError('Label provenance mismatch.')
-print('Verified dataset archive:', ZIP_PATH.name)
+if workflow.file_sha256(DATA_DIR / 'labels.json') != EXPECTED_LABELS_SHA256:
+    raise ValueError('Dataset label provenance mismatch')
+records, integrity = training.verify_dataset(DATA_DIR)
+assert integrity['split_counts'] == {'train':400, 'validation':100}
+validation_records = [r for r in records if r['dataset_split'] == 'validation']
+assert len({r['group_id'] for r in validation_records}) == 50
+print('Verified 500 images: 400 training, 100 validation, 50 validation poses.')
 display(DisplayImage(filename=str(DATA_DIR / 'overview.png'), width=700))
 """)
 md("""
-## 3. Load the training implementation
+## 4. Resolve the experiment and continue training
 
-The complete source is embedded below and saved into the runtime. No extra code upload is needed. The model preserves the full 512 × 512 crop. Grayscale values are repeated into three channels to reuse pretrained image features; no color information is introduced.
+The saved experiment manifest is authoritative on resume. Default legacy continuation uses 512 pixels, batch size 8, all 400 training images, 100 validation images and 20 fine-tuning epochs. Fresh experiments use 5 head-training plus 25 fine-tuning epochs. Early stopping remains enabled.
 
-Training uses speed regression plus supervised pivot/tip heatmaps. It does not convert the raw perspective-distorted needle angle into speed. Pretrained features are frozen initially, then the final blocks are fine-tuned. Batch-normalization statistics stay frozen for the small batches.
+Full checkpoints are staged, copied and rehashed, then published with a `.complete.json` sidecar. Drive needs space for all epoch saves. Incomplete/corrupt files are preserved and skipped if an older verified compatible checkpoint exists. With no valid recovery state, the notebook stops instead of importing legacy weights or starting fresh. The Drive mount cannot guarantee remote upload completion at the instant of a disconnect, so earlier recovery files are retained.
 """)
-code("#@title Load the embedded training module\nTRAINING_CORE_SOURCE = " + repr(core) + "\n" +
-     "EXPECTED_CORE_SHA256 = " + repr(core_hash) + "\n" + """
-assert hashlib.sha256(TRAINING_CORE_SOURCE.encode('utf-8')).hexdigest() == EXPECTED_CORE_SHA256
-module_path = WORK_DIR / 'train_core.py'
-module_path.write_text(TRAINING_CORE_SOURCE, encoding='utf-8')
-spec = importlib.util.spec_from_file_location('speedometer_core', module_path)
-training = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = training
-spec.loader.exec_module(training)
-print('Training module loaded; source SHA256:', EXPECTED_CORE_SHA256)
-""", hidden=True)
 code("""
-records, integrity = training.verify_dataset(DATA_DIR)
-assert integrity['split_counts'] == {'train': 400, 'validation': 100}
-train_records = [r for r in records if r['dataset_split'] == 'train']
-validation_records = [r for r in records if r['dataset_split'] == 'validation']
-assert len({r['group_id'] for r in validation_records}) == 50
-assert not ({r['speed_kmh'] for r in train_records} & {r['speed_kmh'] for r in validation_records})
-
-SEED = 42
-previous_ids = set()
-subset_table = []
-for size in (100, 250, 400):
-    subset = training.select_group_subset(train_records, size, SEED)
-    ids = {r['sample_id'] for r in subset}
-    assert len(subset) == size and previous_ids.issubset(ids)
-    previous_ids = ids
-    subset_table.append({'training_images': size, 'training_poses': len({r['group_id'] for r in subset}),
-                         'validation_images': 100, 'validation_poses': 50})
-display(pd.DataFrame(subset_table))
-print('All input hashes, keypoint coordinates, and split groups verified.')
-print('Validation speed range:', min(r['speed_kmh'] for r in validation_records), 'to', max(r['speed_kmh'] for r in validation_records), 'km/h')
-print('Exact 0 and 180 km/h examples are training-only; the validation set does not test those exact endpoints.')
+prepared = workflow.prepare_persistent_run(
+    training, data_dir=DATA_DIR, drive_root=DRIVE_ROOT, experiment_name=EXPERIMENT_NAME,
+    requested_mode=TRAIN_MODE, run_mode=RUN_MODE, fresh_pretrained=FRESH_PRETRAINED,
+    import_pilot_if_missing=IMPORT_PILOT_IF_MISSING, warm_start_path=LEGACY_CHECKPOINT,
+    extend_by_epochs=EXTEND_BY_EPOCHS, core_sha256=EXPECTED_CORE_SHA256,
+)
+config = prepared['config']
+print('Effective configuration:')
+display(pd.Series({key:getattr(config,key) for key in ('input_size','batch_size','head_epochs','finetune_epochs','max_train_samples','max_val_samples','seed')}))
+result = training.train_persistent(config, **prepared['kwargs'])
+result['run_mode'] = RUN_MODE
+SESSION_DIR = Path(prepared['run_dir'])
+(SESSION_DIR / 'experiment_results.json').write_text(json.dumps([result], indent=2), encoding='utf-8')
+print('Latest complete training state:', result['latest_checkpoint_path'])
+print('Best inference weights:', result['checkpoint_path'])
+print('Epoch:', result['epochs_run'], '| saved target:', result['target_epoch'], '| epochs this invocation:', result['epochs_this_call'])
 """)
 md("""
-## 4. Train the pilot
+## 5. Inspect the saved model
 
-Default: **100, 250, and 400 training images**, 512-pixel input, batch size 8, up to 5 frozen-feature epochs followed by 25 fine-tuning epochs. Each experiment starts from the same pretrained weights and seed. The same 100 validation images are used throughout, and the best checkpoint is selected by validation mean absolute speed error.
-
-To run just the full-data experiment, set `RUN_LEARNING_CURVE = False`. If the GPU reports an out-of-memory error, lower `BATCH_SIZE` to 4 and rerun this section. Each execution creates a new output directory; previous checkpoints are preserved. Availability and runtime depend on the assigned Colab GPU.
+MAE measures average error; **within ±2 km/h** measures the fraction meeting that tolerance. These are different metrics. Inspect worst predictions and tip errors as well as averages. Reports separate lighting/blur profiles, speed ranges and the inferred 60-tick region. No learned confidence or unreadable-frame detector is claimed.
 """)
 code("""
-RUN_LEARNING_CURVE = True
-BATCH_SIZE = 8
-HEAD_EPOCHS = 5
-FINETUNE_EPOCHS = 25
-PATIENCE = 7
-
-from datetime import datetime, timezone
-run_stamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')
-SESSION_DIR = WORK_DIR / ('smoke_' if RUN_MODE == 'smoke' else 'pilot_') / run_stamp
-SESSION_DIR.mkdir(parents=True, exist_ok=False)
-training_sizes = [100, 250, 400] if RUN_LEARNING_CURVE else [400]
-if RUN_MODE == 'smoke':
-    training_sizes = [8]
-
-results = []
-for size in training_sizes:
-    config = training.TrainConfig(
-        data_dir=str(DATA_DIR), output_dir=str(SESSION_DIR / f'train_{size}'),
-        input_size=128 if RUN_MODE == 'smoke' else 512,
-        batch_size=2 if RUN_MODE == 'smoke' else BATCH_SIZE,
-        head_epochs=1 if RUN_MODE == 'smoke' else HEAD_EPOCHS,
-        finetune_epochs=1 if RUN_MODE == 'smoke' else FINETUNE_EPOCHS,
-        patience=PATIENCE, seed=SEED,
-        pretrained=(RUN_MODE != 'smoke'), max_train_samples=size,
-        max_val_samples=4 if RUN_MODE == 'smoke' else None,
-    )
-    print()
-    print(f'Starting {size}-image experiment')
-    result = training.train_experiment(config)
-    result['run_mode'] = RUN_MODE
-    results.append(result)
-    print('Saved:', result['checkpoint_path'])
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
-(SESSION_DIR / 'experiment_results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
-print('All requested experiments finished:', SESSION_DIR)
-""")
-md("""
-## 5. Compare results and inspect mistakes
-
-**Within ±2 km/h** is the proportion of validation predictions whose absolute speed error is at most 2 km/h. MAE is the average absolute speed error. Also inspect the 95th-percentile error and the needle tip error.
-
-These are raw single-frame predictions, before temporal smoothing. No learned confidence or unreadable-frame detector is claimed. Paired images share pose groups, so the 100 validation frames are not 100 independent real-world trials. Reports also separate appearance profiles, speed bins, and the inferred 60-tick region.
+m = result['metrics']
+summary = pd.DataFrame([{
+    'mode':prepared['actual_mode'], 'training_images':result['training_samples'],
+    'validation_images':result['validation_samples'], 'validation_poses':m['pose_groups'],
+    'MAE_kmh':m['mae_kmh'], 'RMSE_kmh':m['rmse_kmh'], 'within_2_kmh_percent':m['within_2_kmh_percent'],
+    'P95_error_kmh':m['p95_absolute_error_kmh'], 'tip_error_px':m['tip_mae_px'],
+    'best_epoch':result['best_epoch'], 'latest_epoch':result['epochs_run'], 'target_epoch':result['target_epoch'],
+    'epochs_this_call':result['epochs_this_call'], 'scope':'synthetic validation' if RUN_MODE=='pilot' else 'software smoke only',
+}])
+summary.to_csv(SESSION_DIR / 'run_summary.csv', index=False)
+display(summary)
+display(DisplayImage(filename=result['learning_curves_path']))
+display(DisplayImage(filename=result['worst_predictions_path'], width=1100))
+display(pd.DataFrame(result['metrics_by_profile']).T)
+print('Real-camera accuracy remains unmeasured.' if RUN_MODE=='pilot' else 'SMOKE ONLY — not a trained-model accuracy claim.')
 """)
 code("""
-comparison_rows = []
-for result in results:
-    m = result['metrics']
-    comparison_rows.append({
-        'training_images': result['training_samples'], 'validation_images': result['validation_samples'],
-        'validation_poses': m['pose_groups'], 'MAE_kmh': m['mae_kmh'],
-        'RMSE_kmh': m['rmse_kmh'], 'within_2_kmh_percent': m['within_2_kmh_percent'],
-        'P95_error_kmh': m['p95_absolute_error_kmh'], 'max_error_kmh': m['max_absolute_error_kmh'],
-        'tip_error_px': m['tip_mae_px'], 'best_epoch': result['best_epoch'],
-        'epochs_run': result['epochs_run'], 'run_mode': RUN_MODE,
-    })
-comparison = pd.DataFrame(comparison_rows).sort_values('training_images')
-comparison.to_csv(SESSION_DIR / 'learning_curve_comparison.csv', index=False)
-display(comparison)
-if RUN_MODE == 'smoke':
-    print('SMOKE RESULTS ONLY — verifies execution, not speed-reading accuracy.')
-else:
-    print('SYNTHETIC VALIDATION ONLY — real-camera accuracy remains unmeasured.')
-
-selected_result = next((r for r in results if r['training_samples'] == 400), results[-1])
-display(DisplayImage(filename=selected_result['learning_curves_path']))
-display(DisplayImage(filename=selected_result['worst_predictions_path'], width=1100))
-display(pd.DataFrame(selected_result['metrics_by_profile']).T)
-""")
-md("""
-## 6. Check a saved model and export the results
-
-This cell reloads the selected checkpoint and predicts one validation image using the same preprocessing. Green shows the supplied needle label; magenta shows the model's prediction. Later, actual camera crops must match the training framing, and real speed labels are needed for evaluation.
-""")
-code("""
-saved_model, checkpoint = training.load_model(selected_result['checkpoint_path'])
+saved_model, checkpoint = training.load_model(result['checkpoint_path'])
 example = validation_records[0]
 prediction = training.predict_image(saved_model, DATA_DIR / example['image'], input_size=checkpoint['config']['input_size'])
-with Image.open(DATA_DIR / example['image']) as im:
-    example_pixels = np.asarray(im)
-fig, ax = plt.subplots(figsize=(6, 6))
-ax.imshow(example_pixels, cmap='gray', vmin=0, vmax=255)
-for source, color, style in [(example['needle_position_normalized'], 'lime', '-'),
-                             (prediction['keypoints_normalized'], 'magenta', '--')]:
-    points = np.array([source['pivot'], source['tip']]) * 511
-    ax.plot(points[:, 0], points[:, 1], style, color=color, marker='o', linewidth=1.5)
-ax.set_title(f"Label {example['speed_kmh']:.1f} km/h | prediction {prediction['speed_kmh']:.1f} km/h")
-ax.axis('off')
-fig.tight_layout()
-fig.savefig(SESSION_DIR / 'reloaded_model_example.png', dpi=130)
-plt.close(fig)
+with Image.open(DATA_DIR / example['image']) as image:
+    pixels = np.asarray(image)
+figure, axis = plt.subplots(figsize=(6,6))
+axis.imshow(pixels, cmap='gray', vmin=0, vmax=255)
+for source,color,style in [(example['needle_position_normalized'],'lime','-'),(prediction['keypoints_normalized'],'magenta','--')]:
+    points = np.array([source['pivot'],source['tip']])*511
+    axis.plot(points[:,0],points[:,1],style,color=color,marker='o',linewidth=1.5)
+axis.set_title(f"Label {example['speed_kmh']:.1f} km/h | prediction {prediction['speed_kmh']:.1f} km/h")
+axis.axis('off')
+figure.tight_layout()
+figure.savefig(SESSION_DIR / 'reloaded_model_example.png',dpi=130)
+plt.close(figure)
 display(DisplayImage(filename=str(SESSION_DIR / 'reloaded_model_example.png')))
 """)
+md("""
+## 6. Export a compact results ZIP
+
+The ZIP contains the best inference model, metrics, predictions, plots, source and a manifest of Drive locations. **Full per-epoch training states remain on Drive** and are excluded from the download to avoid duplicating many large files. Retain the Drive experiment for exact continuation; the compact ZIP alone is an inference/report backup.
+
+After a reset, reopen this notebook, mount the same Drive, retain the experiment name, choose `resume_latest` and Run all. If its fixed budget is complete, no extra epochs run. Use `resume_best` only to rewind to the best complete state. A new training budget requires an explicit positive `EXTEND_BY_EPOCHS`; leave it at 0 on ordinary restarts.
+""")
 code("""
-import shutil
 shutil.copyfile(module_path, SESSION_DIR / 'train_core.py')
-export_note = {
-    'run_mode': RUN_MODE, 'dataset_labels_sha256': EXPECTED_LABELS_SHA256,
-    'training_core_sha256': EXPECTED_CORE_SHA256,
-    'scope': 'Synthetic development validation, not real-camera testing',
-    'real_accuracy_measured': False,
-    'next_decision': 'Inspect errors and learning curves; collect independently labeled real footage before deployment.',
+shutil.copyfile(workflow_path, SESSION_DIR / 'notebook_workflow.py')
+shutil.copyfile(prepared['manifest_path'], SESSION_DIR / 'experiment_config_snapshot.json')
+drive_manifest = {
+    'drive_root':str(DRIVE_ROOT), 'experiment_dir':prepared['experiment_dir'], 'run_dir':str(SESSION_DIR),
+    'experiment_config':prepared['manifest_path'], 'latest_full_checkpoint':result['latest_checkpoint_path'],
+    'best_inference_checkpoint':result['checkpoint_path'], 'dataset_labels_sha256':EXPECTED_LABELS_SHA256,
+    'training_core_sha256':EXPECTED_CORE_SHA256, 'workflow_sha256':EXPECTED_WORKFLOW_SHA256,
+    'target_epoch':result['target_epoch'], 'run_mode':RUN_MODE,
+    'scope':'Synthetic development validation; independent real footage still required',
+    'archive_excludes':'All epoch_*.pt, epoch_*.complete.json and partial files; retain Drive for full resume',
 }
-(SESSION_DIR / 'run_scope.json').write_text(json.dumps(export_note, indent=2), encoding='utf-8')
-RESULTS_ZIP = Path(shutil.make_archive(str(SESSION_DIR) + '_results', 'zip', root_dir=SESSION_DIR))
-print('Results archive:', RESULTS_ZIP)
-print('Checkpoint, inference code, metrics, prediction CSVs, and visual reports are included.')
-if IN_COLAB and RUN_MODE != 'smoke':
+(SESSION_DIR / 'drive_paths.json').write_text(json.dumps(drive_manifest,indent=2),encoding='utf-8')
+RESULTS_ZIP = SESSION_DIR.with_name(SESSION_DIR.name+'_results.zip')
+with zipfile.ZipFile(RESULTS_ZIP,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
+    for path in sorted(SESSION_DIR.rglob('*')):
+        if path.is_file() and not path.name.startswith('epoch_') and '.partial' not in path.name:
+            archive.write(path,path.relative_to(SESSION_DIR))
+print('Compact results archive:',RESULTS_ZIP)
+print('Full training states remain under:',prepared['experiment_dir'])
+if IN_COLAB and RUN_MODE!='smoke':
     from google.colab import files
     files.download(str(RESULTS_ZIP))
 """)
 
 notebook = nbf.v4.new_notebook(cells=cells)
 notebook.metadata.update({
-    "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
-    "language_info": {"name": "python", "version": "3.11"},
-    "colab": {"name": "Speedometer_Training_Colab.ipynb", "provenance": []},
-    "accelerator": "GPU",
-    "speedometer": {"core_sha256": core_hash, "dataset_images": 500, "input_size": 512},
+    "kernelspec":{"display_name":"Python 3","language":"python","name":"python3"},
+    "language_info":{"name":"python","version":"3.11"},
+    "colab":{"name":"Speedometer_Training_Colab.ipynb","provenance":[]}, "accelerator":"GPU",
+    "speedometer":{"core_sha256":core_hash,"workflow_sha256":workflow_hash,
+                   "dataset_images":500,"input_size":512,"drive_persistent":True},
 })
 nbf.validate(notebook)
+for index, cell in enumerate(notebook.cells):
+    if cell.cell_type == "code":
+        compile(cell.source, f"notebook_cell_{index}", "exec")
 target = PROJECT / "Speedometer_Training_Colab.ipynb"
-with target.open('w', encoding='utf-8', newline='\n') as handle:
-    nbf.write(notebook, handle)
+with target.open("w",encoding="utf-8",newline="\n") as handle:
+    nbf.write(notebook,handle)
 print(target)
-print(f"Cells: {len(cells)}; embedded core SHA256: {core_hash}")
+print(f"Cells: {len(cells)}; core SHA256: {core_hash}; workflow SHA256: {workflow_hash}")
