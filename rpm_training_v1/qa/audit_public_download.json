@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "scope": "Fresh public GitHub download using corrected local helper; no credentials, browser or Git mutation.",
+  "public_code_commit": "4924c3775d5c9194fbaaf6e98f7bdc3cfec36d29",
+  "download_manifest_sha256": "b9e4f7b599bfee66030f920eeace93cb0f27a27df5527f85441436f07421781d",
+  "archive_sha256": "b54b49783c1339c0bad1fab46843e6f8aecb7bd7259b0ae565bd4f9bf0524090",
+  "dataset_path": "C:\\Users\\91812\\Dropbox\\PC\\Documents\\vscode\\speedometer_colab\\rpm_training_v1\\qa\\audit_public_single_zip_roundtrip\\data\\extracted_b54b49783c1339c0\\dataset",
+  "dataset_count": 2000,
+  "dataset_identity": {
+    "manifest_sha256": "878479797c1505411d89f4c9228df40e0477d1a83b8d8fd660e1a62001451433",
+    "labels_sha256": "672ef7be68cbc5f0f36e9d749b7b6f8c7aa2cec84d5c5b9eedef5cfa7ce73841",
+    "verified_files_digest": "2c272cbc729893a11c88d3b6c81851f2e7164eb5ea996d14bb9aa314f1daa04b",
+    "verified_file_count": 2029,
+    "input_hw": [
+      256,
+      192
+    ],
+    "counts": {
+      "train": 1600,
+      "train_readable": 1280,
+      "train_unreadable": 320,
+      "val": 400,
+      "val_readable": 320,
+      "val_unreadable": 80
+    },
+    "preprocessing": {
+      "version": "rpm_curved_mask_letterbox_v1",
+      "input_size_hw": [
+        256,
+        192
+      ],
+      "channels": 1,
+      "dtype": "uint8",
+      "network_normalization": "float32 / 255",
+      "canonical_reference_size_hw": [
+        850,
+        478
+      ],
+      "crop_xyxy": [
+        120,
+        316,
+        254,
+        485
+      ],
+      "aspect_ratio": "preserved by letterboxing",
+      "background_value": 128,
+      "reference_to_input_matrix": [
+        [
+          1.4328358208955223,
+          0.0,
+          -171.72388059701493
+        ],
+        [
+          0.0,
+          1.4319526627218935,
+          -445.2810650887574
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "mask": "curved tachometer and printed scale only; static top/bottom decorations removed",
+      "excluded": [
+        "gear N/1..6",
+        "trip",
+        "clock",
+        "fuel"
+      ],
+      "external_requirements": [
+        "LCD/reference registration",
+        "full-LCD startup/readability gate"
+      ],
+      "calibration": "draft printed-scale coordinates; not verified engine-RPM calibration"
+    },
+    "protected_preprocessing_calibration_files": {
+      "calibration/calibration_draft.json": "6e6618f0dba4d29d49b7a10d99ec58ac1101654d74b28ee403713bc98b431a1e",
+      "calibration/preprocessing.json": "0c72807a33bd495b07bcc0573288cdeb7fd4e3241be060f39618af34ed004082",
+      "calibration/source_provenance.json": "eca55c681b5b50cfc02e202eb2b81daad52d39dbd15a23df72381618d35a0938",
+      "calibration/train_appearance.png": "93459239c61884678d87b57219552b2d24bb3fcb0551ee9afc7581c8a64523bf",
+      "calibration/train_baseline.png": "19db6c73f5a8a8373f2e3fcf893a47a2a73330d00a641bb8517d0e73052248e5",
+      "calibration/val_appearance.png": "bff098a8a156cc53ab675af01624d0d55df4c0cb67fb1d6a313290a8004d03d8",
+      "calibration/val_baseline.png": "847401ea91fbe910ebe677257cb14f61a0e546e11b825a26291e572e540f3063",
+      "preprocess.py": "414f42f9e42808b9579c502854d37fa33590efe83bcb4b94e025c37de28acced"
+    },
+    "provenance_limit": "synthetic development data, not independent real engine-RPM ground truth"
+  },
+  "local_helper_sha256": "28e182811d510caa6112163761e001f9e9794d5f0f2d8d0687794fc882bc1426",
+  "elapsed_seconds": 70.14715970004909,
+  "single_part_matches_archive_name": true,
+  "cached_repeat_same_path": true
+}
