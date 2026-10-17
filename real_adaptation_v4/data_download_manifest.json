@@ -1,0 +1,33 @@
+{
+  "archive_name": "daytime_joint_landmarks_2000_v4.zip",
+  "sha256": "c0bd5312879b86912f8aedcb2b3de7612ea3cde2a7306c42d27abce2b9ad561d",
+  "bytes": 233388523,
+  "root": "dataset2000",
+  "parts": [
+    {
+      "filename": "daytime_joint_landmarks_2000_v4.zip.part00",
+      "sha256": "206e0058de9b0ab9ca76c9a01ba3715ed2b98145168e796f9823384c55305714",
+      "bytes": 47185920
+    },
+    {
+      "filename": "daytime_joint_landmarks_2000_v4.zip.part01",
+      "sha256": "21d26541638f8b6628ad5be151d9a0e07983f4c8d4272a9e36486c70af91d6a2",
+      "bytes": 47185920
+    },
+    {
+      "filename": "daytime_joint_landmarks_2000_v4.zip.part02",
+      "sha256": "d51881032b74f4efda744c27e9cf9433dbb779c8e1260394dce35cb1e431896b",
+      "bytes": 47185920
+    },
+    {
+      "filename": "daytime_joint_landmarks_2000_v4.zip.part03",
+      "sha256": "48467f6e20591601c9d48e95fb639563ade38b1fd3665558923b18ccca7e65f9",
+      "bytes": 47185920
+    },
+    {
+      "filename": "daytime_joint_landmarks_2000_v4.zip.part04",
+      "sha256": "802f90fc0be51b27cfd655338d36e57cb500094f1719e72eb3a2c1d1100b1915",
+      "bytes": 44644843
+    }
+  ]
+}

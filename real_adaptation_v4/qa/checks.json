@@ -1,0 +1,25 @@
+{
+  "count": 2000,
+  "train": 1600,
+  "validation": 400,
+  "source_groups_disjoint": true,
+  "source_donor_groups_separate": true,
+  "max_render_roundtrip_error_kmh": 1.4210854715202004e-13,
+  "all_mask_pixels128": true,
+  "all_points_inside": true,
+  "lcd_mask_overlaps_targets_or_forward_shaft": false,
+  "real_accuracy_claimed": false,
+  "imagegen_calls": 0,
+  "source_recordings": 1,
+  "unique_image_sha256": true,
+  "train_source_and_donor_frames": [
+    0,
+    120,
+    300,
+    480
+  ],
+  "validation_source_and_donor_frames": [
+    60,
+    450
+  ]
+}

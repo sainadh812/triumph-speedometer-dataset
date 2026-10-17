@@ -2,6 +2,16 @@
 
 Grayscale dashboard images with speed and needle-position labels for a Triumph Scrambler 400 XC speedometer reader. Version 2 adds clockwise and counterclockwise camera rotations over the full circle, including sideways and upside-down views. Generation uses OpenCV locally, with no per-image AI generation cost.
 
+## Daytime joint needle and tick model V4
+
+The [V4 experiment](real_adaptation_v4/README.md) adds **2,000 masked grayscale images at 512×512** from the daytime dashboard video: 1,600 training and 400 development-validation images. The LCD mask is fitted to the actual daytime view. Frames are aligned to that reference before the fixed mask is applied, keeping the needle, hub and speed scale clear.
+
+[Open the V4 Colab notebook](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/real_adaptation_v4/Speedometer_Joint_Landmarks_V4_Colab.ipynb) · [Verified multipart dataset download](real_adaptation_v4/data_download_manifest.json)
+
+The model predicts the needle pivot and tip plus ten semantic ticks. Speed uses those predicted points. Training transfers the verified V3 needle weights and saves full state to Drive every epoch. This is a same-video adaptation experiment; validation results do not establish independent real-video accuracy.
+
+![Correctly masked daytime training examples](real_adaptation_v4/qa/inputs_contact.jpg)
+
 ## Real dashboard adaptation V3
 
 The latest [needle adaptation experiment](real_adaptation_v3/README.md) addresses poor detections on the fixed-camera night video. It adds **500 grayscale 512×512 images**, generated from approved real-dial background repairs with a masked LCD, varied lighting/blur, and framing shifts. There are 400 training images and 100 validation images from a held-out source plate. All source plates share the same video, so this is a development check rather than an independent real test.
