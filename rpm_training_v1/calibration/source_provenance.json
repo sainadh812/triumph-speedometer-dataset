@@ -1,0 +1,30 @@
+{
+  "train": {
+    "baseline": {
+      "asset": "calibration/train_baseline.png",
+      "original_aligned_file": "07_220558_frame_0000.png",
+      "sha256": "19db6c73f5a8a8373f2e3fcf893a47a2a73330d00a641bb8517d0e73052248e5",
+      "uses_numeric_rpm_prediction": false
+    },
+    "appearance": {
+      "asset": "calibration/train_appearance.png",
+      "original_aligned_file": "11_220558_frame_0169.png",
+      "sha256": "93459239c61884678d87b57219552b2d24bb3fcb0551ee9afc7581c8a64523bf",
+      "uses_numeric_rpm_prediction": false
+    }
+  },
+  "val": {
+    "baseline": {
+      "asset": "calibration/val_baseline.png",
+      "original_aligned_file": "08_220558_frame_0042.png",
+      "sha256": "847401ea91fbe910ebe677257cb14f61a0e546e11b825a26291e572e540f3063",
+      "uses_numeric_rpm_prediction": false
+    },
+    "appearance": {
+      "asset": "calibration/val_appearance.png",
+      "original_aligned_file": "13_220558_frame_0254.png",
+      "sha256": "bff098a8a156cc53ab675af01624d0d55df4c0cb67fb1d6a313290a8004d03d8",
+      "uses_numeric_rpm_prediction": false
+    }
+  }
+}

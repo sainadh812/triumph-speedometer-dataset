@@ -1,0 +1,51 @@
+{
+  "version": "rpm_curved_mask_letterbox_v1",
+  "input_size_hw": [
+    256,
+    192
+  ],
+  "channels": 1,
+  "dtype": "uint8",
+  "network_normalization": "float32 / 255",
+  "canonical_reference_size_hw": [
+    850,
+    478
+  ],
+  "crop_xyxy": [
+    120,
+    316,
+    254,
+    485
+  ],
+  "aspect_ratio": "preserved by letterboxing",
+  "background_value": 128,
+  "reference_to_input_matrix": [
+    [
+      1.4328358208955223,
+      0.0,
+      -171.72388059701493
+    ],
+    [
+      0.0,
+      1.4319526627218935,
+      -445.2810650887574
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "mask": "curved tachometer and printed scale only; static top/bottom decorations removed",
+  "excluded": [
+    "gear N/1..6",
+    "trip",
+    "clock",
+    "fuel"
+  ],
+  "external_requirements": [
+    "LCD/reference registration",
+    "full-LCD startup/readability gate"
+  ],
+  "calibration": "draft printed-scale coordinates; not verified engine-RPM calibration"
+}

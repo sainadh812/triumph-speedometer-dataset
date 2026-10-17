@@ -1,5 +1,10 @@
 # Triumph speedometer synthetic dataset
 
+## RPM training pilot
+
+The [RPM Colab notebook](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/rpm_training_v1/Triumph_RPM_Training_V1_Colab.ipynb) trains a separate small CNN on **2,000 OpenCV-generated LCD-bar images**, with gear/trip regions masked. It saves every epoch to Drive and supports fresh/latest/best/explicit restart modes. [Dataset, calibration limits and setup](rpm_training_v1/README.md). Approximate synthetic RPM labels are not measured engine RPM; independent real accuracy remains unverified.
+
+
 Grayscale dashboard images with speed and needle-position labels for a Triumph Scrambler 400 XC speedometer reader. Version 2 adds clockwise and counterclockwise camera rotations over the full circle, including sideways and upside-down views. Generation uses OpenCV locally, with no per-image AI generation cost.
 
 ## Daytime joint needle and tick model V4

@@ -1,0 +1,518 @@
+{
+  "schema_version": 1,
+  "status": "draft_visual_calibration_not_ground_truth_rpm",
+  "reference_image": "rpm_exploration/review_220558_frame_0169.png",
+  "reference_sha256": "c9c267c6c4b0034988599ccf81892d011f2ab165feaa7d475e532ded119d84d1",
+  "image_width": 478,
+  "image_height": 850,
+  "coordinate_convention": "original reference pixels, x right, y down",
+  "display": {
+    "type": "LCD_filled_curved_bar",
+    "printed_unit": "RPM x 1000",
+    "printed_min_rpm": 0,
+    "printed_max_rpm": 12000
+  },
+  "scale_anchors": [
+    {
+      "rpm": 0,
+      "xy": [
+        225,
+        469
+      ],
+      "scale_tip_xy": [
+        225,
+        469
+      ],
+      "printed_label": true,
+      "label_center_xy": [
+        237,
+        468
+      ],
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 1000,
+      "xy": [
+        224,
+        457
+      ],
+      "scale_tip_xy": [
+        224,
+        457
+      ],
+      "printed_label": false,
+      "label_center_xy": null,
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 2000,
+      "xy": [
+        224,
+        445
+      ],
+      "scale_tip_xy": [
+        224,
+        445
+      ],
+      "printed_label": true,
+      "label_center_xy": [
+        236,
+        444
+      ],
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 3000,
+      "xy": [
+        223,
+        433
+      ],
+      "scale_tip_xy": [
+        223,
+        433
+      ],
+      "printed_label": false,
+      "label_center_xy": null,
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 4000,
+      "xy": [
+        220,
+        421
+      ],
+      "scale_tip_xy": [
+        220,
+        421
+      ],
+      "printed_label": true,
+      "label_center_xy": [
+        233,
+        421
+      ],
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 5000,
+      "xy": [
+        218,
+        409
+      ],
+      "scale_tip_xy": [
+        218,
+        409
+      ],
+      "printed_label": false,
+      "label_center_xy": null,
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 6000,
+      "xy": [
+        214,
+        397
+      ],
+      "scale_tip_xy": [
+        214,
+        397
+      ],
+      "printed_label": true,
+      "label_center_xy": [
+        228,
+        397
+      ],
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 7000,
+      "xy": [
+        209,
+        385
+      ],
+      "scale_tip_xy": [
+        209,
+        385
+      ],
+      "printed_label": false,
+      "label_center_xy": null,
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 8000,
+      "xy": [
+        204,
+        373
+      ],
+      "scale_tip_xy": [
+        204,
+        373
+      ],
+      "printed_label": true,
+      "label_center_xy": [
+        219,
+        373
+      ],
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 9000,
+      "xy": [
+        197,
+        361
+      ],
+      "scale_tip_xy": [
+        197,
+        361
+      ],
+      "printed_label": false,
+      "label_center_xy": null,
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 10000,
+      "xy": [
+        191,
+        349
+      ],
+      "scale_tip_xy": [
+        191,
+        349
+      ],
+      "printed_label": true,
+      "label_center_xy": [
+        207,
+        350
+      ],
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 11000,
+      "xy": [
+        184,
+        338
+      ],
+      "scale_tip_xy": [
+        184,
+        338
+      ],
+      "printed_label": false,
+      "label_center_xy": null,
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    },
+    {
+      "rpm": 12000,
+      "xy": [
+        178,
+        328
+      ],
+      "scale_tip_xy": [
+        178,
+        328
+      ],
+      "printed_label": true,
+      "label_center_xy": [
+        192,
+        328
+      ],
+      "position_uncertainty_px": 1.5,
+      "provenance": "manual visible scale tooth; odd thousands interpolated between printed even labels"
+    }
+  ],
+  "left_edge_xy": [
+    [
+      130,
+      326
+    ],
+    [
+      143,
+      345
+    ],
+    [
+      156,
+      365
+    ],
+    [
+      168,
+      385
+    ],
+    [
+      179,
+      409
+    ],
+    [
+      187,
+      433
+    ],
+    [
+      192,
+      456
+    ],
+    [
+      193,
+      479
+    ]
+  ],
+  "inner_right_edge_xy": [
+    [
+      175,
+      330
+    ],
+    [
+      184,
+      350
+    ],
+    [
+      193,
+      370
+    ],
+    [
+      202,
+      390
+    ],
+    [
+      209,
+      410
+    ],
+    [
+      214,
+      430
+    ],
+    [
+      217,
+      450
+    ],
+    [
+      218,
+      470
+    ],
+    [
+      217,
+      478
+    ]
+  ],
+  "static_exclusion_polygons_xy": [
+    [
+      [
+        193,
+        473
+      ],
+      [
+        223,
+        469
+      ],
+      [
+        217,
+        477
+      ],
+      [
+        193,
+        480
+      ]
+    ],
+    [
+      [
+        129,
+        324
+      ],
+      [
+        157,
+        321
+      ],
+      [
+        172,
+        335
+      ],
+      [
+        146,
+        346
+      ]
+    ]
+  ],
+  "nominal_bar_slope_reference": -0.2,
+  "exact_segment_increment_rpm": null,
+  "bar_track": {
+    "left_boundary_top_to_bottom_xy": [
+      [
+        130,
+        326
+      ],
+      [
+        143,
+        345
+      ],
+      [
+        156,
+        365
+      ],
+      [
+        168,
+        385
+      ],
+      [
+        179,
+        409
+      ],
+      [
+        187,
+        433
+      ],
+      [
+        192,
+        456
+      ],
+      [
+        193,
+        479
+      ]
+    ],
+    "right_interior_boundary_top_to_bottom_xy": [
+      [
+        175,
+        330
+      ],
+      [
+        184,
+        350
+      ],
+      [
+        193,
+        370
+      ],
+      [
+        202,
+        390
+      ],
+      [
+        209,
+        410
+      ],
+      [
+        214,
+        430
+      ],
+      [
+        217,
+        450
+      ],
+      [
+        218,
+        470
+      ],
+      [
+        217,
+        478
+      ]
+    ],
+    "interior_sampling_fraction_from_left": [
+      0.2,
+      0.8
+    ],
+    "exclude_static_fixed_scale_serrations": true,
+    "lower_bar_line_dy_dx_approximate": -0.2,
+    "note": "Do not use raw y alone: bar edges tilt and the track curves. Refine cross sections from aligned on/off frames before claiming accurate RPM. Right boundary is inside the serrations, not the outward numeric-scale tips."
+  },
+  "static_exclusions": [
+    {
+      "name": "static_bottom_block",
+      "polygon_xy": [
+        [
+          193,
+          473
+        ],
+        [
+          223,
+          469
+        ],
+        [
+          217,
+          477
+        ],
+        [
+          193,
+          480
+        ]
+      ],
+      "reason": "Present with no active bars in frames 0 and 42 of clip 220558."
+    },
+    {
+      "name": "static_top_decoration",
+      "polygon_xy": [
+        [
+          129,
+          324
+        ],
+        [
+          157,
+          321
+        ],
+        [
+          172,
+          335
+        ],
+        [
+          146,
+          346
+        ]
+      ],
+      "reason": "Blue triangle also present with no active bars; do not count as fill."
+    }
+  ],
+  "zero_fill_reference_candidates": [
+    "rpm_exploration/review_220558_frame_0000.png",
+    "rpm_exploration/review_220558_frame_0042.png"
+  ],
+  "quantization": {
+    "discrete_segment_count": null,
+    "rpm_per_segment": null,
+    "verified": false,
+    "reason": "The thin dark stripes occupy only about 3.5-4 original-reference pixels; startup source resolution is about half this size and alignment adds about 1px uncertainty. These clips do not securely establish the independently addressable segment count or exact RPM per segment.",
+    "measured_native_reference_band_pitch_px_approx": [
+      3.5,
+      4.0
+    ],
+    "measurement_region_xyxy": [
+      198,
+      442,
+      211,
+      472
+    ],
+    "do_not_round_output_to_an_assumed_increment": true
+  },
+  "evidence": [
+    {
+      "source": "review_220558_frame_0169.png",
+      "role": "close-up active fill and fixed scale geometry",
+      "rpm_ground_truth": false
+    },
+    {
+      "source": "review_220558_frame_0000.png",
+      "role": "no-active-fill appearance, fixed bottom block and top triangle",
+      "rpm_ground_truth": false
+    },
+    {
+      "source": "clip 220557 frames 124-204",
+      "role": "startup test sweep exposes upper track",
+      "rpm_ground_truth": false
+    }
+  ],
+  "limitations": [
+    "Calibration maps visible LCD fill to an approximate indicated RPM; it is not a mechanical engine-speed measurement.",
+    "Startup sweep and gear-number sweep are animation, never training/test labels for real engine RPM.",
+    "No OBD/tachometer ground truth or manufacturer segment specification is available in these files.",
+    "The fixed bottom block and upper blue decoration must not count as active RPM fill.",
+    "Anchor coordinates are visual estimates; approximately 1-1.5px annotation uncertainty and about 1px registration uncertainty are material for thin bars.",
+    "Upper-range calibration is supported only by the startup animation, not a steady high-RPM running example."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "archive_name": "rpm_synthetic_2000_v1.zip",
+  "sha256": "b54b49783c1339c0bad1fab46843e6f8aecb7bd7259b0ae565bd4f9bf0524090",
+  "bytes": 24407949,
+  "root": "dataset",
+  "parts": [
+    {
+      "filename": "rpm_synthetic_2000_v1.zip",
+      "sha256": "b54b49783c1339c0bad1fab46843e6f8aecb7bd7259b0ae565bd4f9bf0524090",
+      "bytes": 24407949
+    }
+  ]
+}

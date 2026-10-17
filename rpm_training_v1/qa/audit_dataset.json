@@ -1,0 +1,51 @@
+{
+  "status": "passed",
+  "checks": {
+    "manifest_sha256": "878479797c1505411d89f4c9228df40e0477d1a83b8d8fd660e1a62001451433",
+    "labels_sha256": "672ef7be68cbc5f0f36e9d749b7b6f8c7aa2cec84d5c5b9eedef5cfa7ce73841",
+    "verified_files": 2029,
+    "counts": {
+      "train:known_synthetic_fill": 1280,
+      "train:no_resolved_fill": 80,
+      "train:occluded_edge": 80,
+      "train:severe_blur": 80,
+      "train:washout": 80,
+      "val:known_synthetic_fill": 320,
+      "val:no_resolved_fill": 20,
+      "val:occluded_edge": 20,
+      "val:severe_blur": 20,
+      "val:washout": 20
+    },
+    "families": 400,
+    "unique_train_pixel_hashes": 1600,
+    "unique_val_pixel_hashes": 400,
+    "max_label_transform_error_px": 2.5579538487363607e-13,
+    "real_unlabeled_diagnostics": 19,
+    "source_assets": {
+      "train": [
+        "07_220558_frame_0000.png",
+        "11_220558_frame_0169.png"
+      ],
+      "val": [
+        "08_220558_frame_0042.png",
+        "13_220558_frame_0254.png"
+      ]
+    },
+    "opencv_version": "4.14.0",
+    "numpy_version": "2.1.3"
+  },
+  "failures": [],
+  "limitations": [
+    "Rendered geometry verified; mechanical engine RPM and physical segment increment remain unverified.",
+    "Distinct source-frame assets and procedural families still share the recording session, display, calibration and renderer.",
+    "This audit is not an independent real-video accuracy measurement."
+  ],
+  "visual_review": {
+    "assets": [
+      "qa/train_contact.jpg",
+      "qa/val_contact.jpg",
+      "qa/real_vs_synthetic.png"
+    ],
+    "finding": "Curved input retains scale and bar, excludes unrelated LCD fields; target markers follow rendered fill onset. Real/synthetic stripe appearance is plausible at available resolution; high-range physical RPM remains unverified."
+  }
+}

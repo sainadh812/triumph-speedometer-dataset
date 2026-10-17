@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "scope": "In-memory notebook-builder syntax and static contract audit; no Colab execution, no notebook file written.",
+  "code_cells_compiled": [
+    1,
+    3,
+    5,
+    7,
+    9,
+    11,
+    13
+  ],
+  "module_syntax": "all current rpm_training_v1/*.py parsed",
+  "checkpoint_marker_mapping": {
+    "input": "epoch_0017.complete.json",
+    "output": "epoch_0017.pt"
+  },
+  "contract_review": [
+    "Pinned code commit and download manifest SHA are explicit notebook settings.",
+    "GPU and persistent Drive write probe precede training.",
+    "TrainConfig uses current API; REPORT fields and full checkpoint marker fields match trainer.",
+    "Best/latest full-state validation uses REPORT identity.",
+    "Best inference export is distinct from resumable full states.",
+    "Real diagnostic numeric labels remain absent and state gates are preserved."
+  ],
+  "limitations": [
+    "Notebook syntax/static review does not establish successful Drive authentication, GPU training, download or public availability.",
+    "Data and checkpoint identity of evaluate_real requested as additional guard; root owns that implementation."
+  ]
+}

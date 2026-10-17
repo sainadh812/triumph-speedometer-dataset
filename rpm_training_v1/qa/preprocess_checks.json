@@ -1,0 +1,10 @@
+{
+  "mask_noninterference": "PASS: arbitrary changes outside curved mask leave identical model input",
+  "gear_region_excluded": true,
+  "trip_region_excluded": true,
+  "shape_hw": [
+    256,
+    192
+  ],
+  "dtype": "uint8"
+}

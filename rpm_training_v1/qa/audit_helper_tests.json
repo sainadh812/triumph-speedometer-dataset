@@ -1,0 +1,7 @@
+{
+  "scope": "Offline archive/helper integrity regression audit; no network used.",
+  "tests_run": 10,
+  "passed": true,
+  "failures": [],
+  "errors": []
+}
