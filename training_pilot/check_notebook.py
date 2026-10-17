@@ -22,11 +22,13 @@ ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent
 CHECKS = ROOT / "checks"
 CHECKS.mkdir(exist_ok=True)
-work = Path(tempfile.mkdtemp(prefix="speedometer_drive_notebook_check_"))
-mock_drive = work / "mock_drive" / "SpeedometerTraining"
+# Keep checkpoint sidecar paths below Windows MAX_PATH in the local harness.
+work = Path(os.environ["SPEEDOMETER_CHECK_WORK_DIR"]) if os.environ.get("SPEEDOMETER_CHECK_WORK_DIR") else Path(tempfile.mkdtemp(prefix="spn_"))
+work.mkdir(parents=True, exist_ok=True)
+mock_drive = work / "drive" / "SpeedometerTraining"
 kernel_root = work / "kernels"
 kernel_dir = kernel_root / "speedometer-smoke"
-kernel_dir.mkdir(parents=True)
+kernel_dir.mkdir(parents=True, exist_ok=True)
 launcher = work / "launch_kernel.py"
 # Load torch before ipykernel to avoid local Windows DLL initialization ordering.
 launcher.write_text("import torch\nfrom ipykernel.kernelapp import IPKernelApp\nIPKernelApp.launch_instance()\n", encoding="utf-8")
@@ -40,6 +42,7 @@ EXPERIMENT_NAME = "smoke_rotation_persistence_v2"
 
 
 def run_notebook(mode, invocation, experiment_name=EXPERIMENT_NAME, workspace=None):
+    print(f"Starting notebook invocation: {invocation} ({mode})", flush=True)
     workspace = Path(workspace or work)
     workspace.mkdir(parents=True, exist_ok=True)
     specs = KernelSpecManager(kernel_dirs=[str(kernel_root)],ensure_native_kernel=False)
@@ -53,12 +56,14 @@ def run_notebook(mode, invocation, experiment_name=EXPERIMENT_NAME, workspace=No
         "SPEEDOMETER_DATASET_ZIP":str(PROJECT / "speedometer_bw_rotation_v2.zip"),
         "MPLBACKEND":"Agg", "OMP_NUM_THREADS":"4", "MKL_NUM_THREADS":"4",
     })
-    client = NotebookClient(notebook,km=manager,timeout=300,allow_errors=False,
+    # Large-archive extraction and first reads can be slow under Windows AV.
+    client = NotebookClient(notebook,km=manager,timeout=900,allow_errors=False,
                             resources={"metadata":{"path":str(workspace)}})
     try:
         client.execute(env=environment)
     finally:
         nbformat.write(notebook,CHECKS / f"rotation_smoke_{invocation}_executed.ipynb")
+    print(f"Completed notebook invocation: {invocation}", flush=True)
     return sum(cell.cell_type=="code" for cell in notebook.cells)
 
 
