@@ -6,3 +6,7 @@ speedometer_work/
 bw_dataset_500/
 bw_dataset_rotation_v2/
 training_pilot/checks/
+ring_training/checks/
+ring_training/runs/
+ring_training/ring_notebook_work/
+!ring_training/arc_needle_review20.zip

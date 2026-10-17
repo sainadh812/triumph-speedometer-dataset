@@ -4,13 +4,22 @@ Grayscale dashboard images with speed and needle-position labels for a Triumph S
 
 ## Download and train
 
-- [Open the latest notebook in Google Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb)
+- [Arc + needle learning-check notebook](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/ring_training/Speedometer_Arc_Needle_Colab.ipynb) — new development pilot described below
+- [Open the version-2 rotation notebook in Google Colab](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/Speedometer_Training_Colab.ipynb)
 - [Version 2 dataset ZIP](https://github.com/sainadh812/triumph-speedometer-dataset/releases/download/v2.0.0/speedometer_bw_rotation_v2.zip)
 - [SHA-256 checksum](https://github.com/sainadh812/triumph-speedometer-dataset/releases/download/v2.0.0/speedometer_bw_rotation_v2.zip.sha256)
 - [Version 2 release](https://github.com/sainadh812/triumph-speedometer-dataset/releases/tag/v2.0.0)
 - [Original 500-image dataset](https://github.com/sainadh812/triumph-speedometer-dataset/releases/tag/v1.0.0) and [preserved baseline notebook](Speedometer_Baseline_500_Colab.ipynb)
 
-The public dataset is a release asset; cloning the repository does not download images. The notebook downloads and verifies the archive automatically. Select a T4 GPU and Run all, then authorize the Drive mount if prompted. Existing Drive notebook copies do not automatically receive GitHub changes.
+The large version-2 dataset is a release asset; cloning the repository does not download that dataset. Its notebook downloads and verifies the archive automatically. Select a T4 GPU and Run all, then authorize the Drive mount if prompted. Existing Drive notebook copies do not automatically receive GitHub changes.
+
+## Arc and named-tick development pilot
+
+The separate [arc/needle notebook](ring_training/Speedometer_Arc_Needle_Colab.ipynb) extends the rotation model with six named tick heatmaps, tick visibility and a full-resolution scale-arc mask. An explicit migration copies all existing speed/needle tensors from private best rotation epoch 19 and initializes only the new branches. The new model uses a separate experiment and saves every completed epoch to Drive, with latest/best/fresh modes.
+
+This first learning check uses the same **20 review images at 512 × 512 for training and evaluation**. It is not a held-out accuracy test. The [review archive](ring_training/arc_needle_review20.zip) includes speed, needle endpoints, named ticks, arc/ignore masks and transformation provenance. This small archive is included in the repository; the larger version-2 dataset remains a release asset. The inferred 60 km/h region stays excluded from reliable arc supervision.
+
+Geometric speed uses predicted tick positions, predicted visibility and predicted needle endpoints. Ground-truth landmarks and known camera transforms never enter image-based geometric inference. Reports include rejected readings in all-input success rates, so a small accepted subset cannot conceal failures. See [setup and evaluation notes](ring_training/README.txt). This pilot does not establish real-camera accuracy or replace the completed version-2 evaluation below.
 
 ## Images and labels
 
