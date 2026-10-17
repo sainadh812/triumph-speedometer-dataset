@@ -1,0 +1,95 @@
+{
+  "count": 500,
+  "approved_originals": 20,
+  "new_images": 480,
+  "source_sha256": "c1d0e8a1e204626518853005f5c58bc91113d3bdf8a82477c75787eee26b0f7b",
+  "split_counts": {
+    "train": 400,
+    "validation": 100
+  },
+  "clean_pose_groups": 260,
+  "speed_range_kmh": [
+    0,
+    180
+  ],
+  "profile_counts": {
+    "train": {
+      "soft_focus": 27,
+      "dim_noise": 27,
+      "compression": 27,
+      "reflection_noise": 27,
+      "bright": 27,
+      "motion_noise": 28,
+      "clean": 20,
+      "shadow": 27,
+      "mixed": 27,
+      "shadow_noise": 27,
+      "noise": 27,
+      "bright_soft": 27,
+      "reflection": 28,
+      "motion": 27,
+      "dim": 27
+    },
+    "validation": {
+      "soft_focus": 6,
+      "reflection_noise": 6,
+      "mixed": 7,
+      "noise": 7,
+      "shadow_noise": 7,
+      "motion": 6,
+      "dim_noise": 7,
+      "compression": 7,
+      "bright": 7,
+      "dim": 7,
+      "reflection": 7,
+      "shadow": 7,
+      "bright_soft": 7,
+      "clean": 5,
+      "motion_noise": 7
+    }
+  },
+  "speed_bin_counts_10_kmh": {
+    "train": [
+      23,
+      21,
+      21,
+      23,
+      23,
+      21,
+      24,
+      23,
+      21,
+      21,
+      23,
+      23,
+      21,
+      23,
+      21,
+      23,
+      23,
+      22
+    ],
+    "validation": [
+      6,
+      6,
+      6,
+      4,
+      6,
+      6,
+      6,
+      4,
+      6,
+      6,
+      4,
+      4,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ]
+  },
+  "inferred_60_influence_count": 56,
+  "training_started": false
+}

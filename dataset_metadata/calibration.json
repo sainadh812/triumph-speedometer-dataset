@@ -1,0 +1,243 @@
+{
+  "calibration_version": "new_imagegen_bw_v1",
+  "pivot_xy": [
+    596.0,
+    654.5025426476053
+  ],
+  "source_file": "source/approved_imagegen_master.png",
+  "source_sha256": "c1d0e8a1e204626518853005f5c58bc91113d3bdf8a82477c75787eee26b0f7b",
+  "source_size": [
+    1254,
+    1254
+  ],
+  "output_size": [
+    512,
+    512
+  ],
+  "coordinate_convention": "x right, y down; source image coordinates; image angles clockwise from positive x; physical needle angle unknown",
+  "calibration_status": "manual_review_pending",
+  "ticks": [
+    {
+      "speed_kmh": 0,
+      "inner_tick_xy": [
+        606,
+        978
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 10,
+      "inner_tick_xy": [
+        546,
+        976
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 20,
+      "inner_tick_xy": [
+        480,
+        958
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 30,
+      "inner_tick_xy": [
+        419,
+        930
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 40,
+      "inner_tick_xy": [
+        363,
+        889
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 50,
+      "inner_tick_xy": [
+        317,
+        842
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 60,
+      "inner_tick_xy": [
+        281.627679,
+        784.824456
+      ],
+      "method": "inferred_neighbor_ticks",
+      "estimated_annotation_uncertainty_px": 6,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 70,
+      "inner_tick_xy": [
+        258,
+        721
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 80,
+      "inner_tick_xy": [
+        246,
+        659
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 90,
+      "inner_tick_xy": [
+        245,
+        591
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 100,
+      "inner_tick_xy": [
+        254,
+        526
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 110,
+      "inner_tick_xy": [
+        284,
+        460
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 120,
+      "inner_tick_xy": [
+        316,
+        405
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 130,
+      "inner_tick_xy": [
+        370,
+        356
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 140,
+      "inner_tick_xy": [
+        430,
+        317
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 150,
+      "inner_tick_xy": [
+        494,
+        290
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 160,
+      "inner_tick_xy": [
+        561,
+        282
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 170,
+      "inner_tick_xy": [
+        629,
+        282
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    },
+    {
+      "speed_kmh": 180,
+      "inner_tick_xy": [
+        699,
+        298
+      ],
+      "method": "manual_visible_tick",
+      "estimated_annotation_uncertainty_px": 3,
+      "manual_review_pending": true
+    }
+  ],
+  "checks": {
+    "speed_sorted": true,
+    "image_angle_rays_strictly_increasing": true,
+    "image_angle_degrees_clockwise_from_positive_x": [
+      88.229428,
+      98.83995,
+      110.917395,
+      122.719697,
+      134.816475,
+      146.097561,
+      157.483725,
+      168.869888,
+      179.263797,
+      190.254964,
+      200.593129,
+      211.939644,
+      221.703609,
+      232.870182,
+      243.809819,
+      254.366603,
+      264.6323,
+      275.062617,
+      286.114957
+    ]
+  },
+  "notes": [
+    "All annotations refer to the newly approved ImageGen grayscale reconstruction; the earlier photographed-source calibration was not reused.",
+    "The source is an ImageGen reconstruction and may redraw the original dial, tick marks, and symbols. Its geometry has not yet been validated against the physical dashboard.",
+    "The 60 km/h tick is obscured by the source needle. Its inner tick position is inferred from the arithmetic mean of the polar angles and radii of the visible 50 and 70 km/h ticks about the recorded pivot. The existing source needle direction is not used as the 60 km/h target.",
+    "Coordinates represent intersections of tick strokes with the inner scale arc, not tick-stroke extensions. Minor stroke orientations in the reconstructed image are not perfectly radial.",
+    "All anchor annotations and generated readings remain subject to manual review. The listed pixel uncertainty is an annotation estimate, not a guaranteed bound or a verified speed accuracy."
+  ]
+}

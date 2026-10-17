@@ -1,0 +1,53 @@
+{
+  "passed": true,
+  "checks": [
+    "Source hashes, clean plate support and frozen needle layers verified",
+    "500 unique 512x512 single-channel uint8 inputs; 20 approved copies unchanged plus 480 fresh samples",
+    "400 train and 100 validation samples; no pose-group or exact-speed overlap between splits",
+    "240 fresh pose groups each have two variants; 190 train groups and 50 validation groups",
+    "Image checksums, source hashes, all relative paths and finite JSON parameters verified",
+    "Every keypoint, normalized coordinate, angle and uncertainty agrees with recorded transforms",
+    "All binary nonempty masks match source alpha transforms; label tips are within 3 pixels of mask support",
+    "Continuous speed anchors independently match piecewise angle/radius calibration interpolation",
+    "Approved pilot and new pending review statuses retained; CSV manifests match JSON labels",
+    "Two in-memory reproductions of 12 new and 2 approved samples match saved images, masks and labels"
+  ],
+  "libraries": {
+    "opencv": "4.6.0",
+    "numpy": "1.23.4"
+  },
+  "source_sha256": "c1d0e8a1e204626518853005f5c58bc91113d3bdf8a82477c75787eee26b0f7b",
+  "images": 500,
+  "approved_images_preserved": 20,
+  "new_images": 480,
+  "split_counts": {
+    "train": 400,
+    "validation": 100
+  },
+  "pose_groups": 260,
+  "maximum_tip_to_mask_gap_px": 1.191473842555028,
+  "new_samples_influenced_by_inferred_60_tick": 54,
+  "sampled_reproduction_ids": [
+    1,
+    20,
+    21,
+    64,
+    108,
+    151,
+    195,
+    238,
+    282,
+    325,
+    369,
+    412,
+    456,
+    500
+  ],
+  "full_batch_regenerated": false,
+  "training_started": false,
+  "limitations": [
+    "This validates file, rendering and label consistency; it does not establish live-camera accuracy.",
+    "Both splits share one ImageGen master. Synthetic validation is not an independent real-camera test.",
+    "Calibration remains approximate; interpolated speeds and the inferred 60 tick require review."
+  ]
+}

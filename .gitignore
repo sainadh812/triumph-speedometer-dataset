@@ -1,0 +1,7 @@
+*.zip
+*.pt
+__pycache__/
+.ipynb_checkpoints/
+speedometer_work/
+bw_dataset_500/
+training_pilot/checks/
