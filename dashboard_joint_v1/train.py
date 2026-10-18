@@ -47,6 +47,9 @@ class TrainConfig:
     weight_decay: float = 1e-4
     warmup_epochs: int = 3
     amp: bool = True
+    amp_initial_scale: float = 256.
+    amp_min_scale: float = 1.
+    amp_max_retries: int = 8
     num_workers: int = 2
     seed: int = 812
     heatmap_sigma: float = 1.5
@@ -55,6 +58,12 @@ class TrainConfig:
     progress_every_batches: int = 20
 
     def checked(self):
+        for key in ('epochs', 'min_epochs', 'patience', 'batch_size', 'warmup_epochs',
+                    'num_workers', 'seed', 'progress_every_batches', 'amp_max_retries'):
+            if isinstance(getattr(self, key), bool) or not isinstance(getattr(self, key), int):
+                raise ValueError('Expected integer configuration: ' + key)
+        if not isinstance(self.amp, bool):
+            raise ValueError('amp must be a boolean')
         if not (1 <= self.min_epochs <= self.epochs and self.patience >= 1 and self.batch_size >= 1):
             raise ValueError('Invalid epoch/patience/batch configuration')
         if self.num_workers < 0 or self.warmup_epochs < 0 or self.progress_every_batches < 1:
@@ -62,8 +71,13 @@ class TrainConfig:
         for key in ('learning_rate', 'encoder_learning_rate', 'heatmap_sigma', 'gradient_clip'):
             if not math.isfinite(getattr(self, key)) or getattr(self, key) <= 0:
                 raise ValueError('Invalid positive configuration: ' + key)
-        if self.weight_decay < 0 or self.min_improvement < 0:
+        if (not math.isfinite(self.weight_decay) or not math.isfinite(self.min_improvement) or
+                self.weight_decay < 0 or self.min_improvement < 0):
             raise ValueError('Weight decay/minimum improvement cannot be negative')
+        if (not math.isfinite(self.amp_initial_scale) or not math.isfinite(self.amp_min_scale) or
+                not 0 < self.amp_min_scale <= self.amp_initial_scale <= 65536 or
+                not 0 <= self.amp_max_retries <= 16):
+            raise ValueError('Invalid bounded AMP loss-scale configuration')
         return self
 
 
@@ -147,6 +161,84 @@ def _configure_train(model, epoch, config):
     for module in model.features.modules():
         if isinstance(module, nn.BatchNorm2d):
             module.eval()
+
+
+def _next_amp_scale(current, retries, config):
+    """A bounded policy, independently testable without neural execution."""
+    if not config.amp or not math.isfinite(current) or current <= 0:
+        raise RuntimeError('Nonfinite gradients without a usable AMP loss scale; no optimizer update')
+    reduced = current * .5
+    if retries >= config.amp_max_retries or reduced < config.amp_min_scale:
+        raise RuntimeError('Persistent nonfinite gradients after bounded AMP backoff; no optimizer update')
+    return reduced
+
+
+def _restore_step_state(model, rng, buffers):
+    _restore_rng(rng)
+    with torch.no_grad():
+        for name, value in model.named_buffers():
+            value.copy_(buffers[name])
+
+
+def _checked_training_step(model, optimizer, scaler, batch, config, context=None, progress_callback=None):
+    """Retry the SAME batch only on AMP overflow; exactly one valid optimizer update.
+
+    unscale_ records every nonfinite gradient in GradScaler. On overflow its
+    documented step() skips optimizer.step(); update() backs off the scale.
+    RNG and mutable buffers are restored before replay, including BatchNorm.
+    A finite loss is not sufficient: unscaled FP32 gradients and clipping norm
+    must be finite. FP32 loss/norm failures or exhausted backoff abort the run.
+    """
+    parameters = tuple(model.parameters())
+    rng = _rng_state()
+    buffers = {name: value.detach().clone() for name, value in model.named_buffers()}
+    retries, initial_scale = 0, float(scaler.get_scale())
+    while True:
+        optimizer.zero_grad(set_to_none=True)
+        try:
+            with torch.autocast('cuda', enabled=config.amp):
+                output = model(batch['image'])
+                loss, components = training_loss(output, batch, model.input_hw, config.heatmap_sigma)
+            if not bool(torch.stack([torch.isfinite(value).all() for value in (loss, *components.values())]).all()):
+                raise RuntimeError('Nonfinite training loss/component; no optimizer update')
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            gradients = [parameter.grad for parameter in parameters if parameter.grad is not None]
+            if not gradients or any(gradient.dtype != torch.float32 for gradient in gradients):
+                raise RuntimeError('Expected unscaled FP32 parameter gradients; no optimizer update')
+            finite = bool(torch.stack([torch.isfinite(gradient).all() for gradient in gradients]).all())
+            if not finite:
+                current = float(scaler.get_scale())
+                reduced = _next_amp_scale(current, retries, config)
+                # unscale_ has recorded inf/NaN. GradScaler skips the optimizer
+                # update here; do not clip invalid gradients or skip the batch.
+                scaler.step(optimizer)
+                scaler.update()
+                if not math.isclose(float(scaler.get_scale()), reduced, rel_tol=1e-7, abs_tol=0.):
+                    raise RuntimeError('AMP backoff did not match the required scale policy')
+                retries += 1
+                optimizer.zero_grad(set_to_none=True)
+                _restore_step_state(model, rng, buffers)
+                emit({'event': 'amp_overflow_retry', **(context or {}), 'retry': retries,
+                      'old_loss_scale': current, 'new_loss_scale': reduced,
+                      'optimizer_update_skipped': True, 'same_batch_replayed': True}, progress_callback)
+                del output, loss, components, gradients
+                continue
+            norm = torch.nn.utils.clip_grad_norm_(parameters, config.gradient_clip, error_if_nonfinite=True)
+            if (not bool(torch.isfinite(norm)) or
+                    not bool(torch.stack([torch.isfinite(gradient).all() for gradient in gradients]).all())):
+                raise RuntimeError('Nonfinite clipped gradient or norm; no optimizer update')
+            accepted_scale = float(scaler.get_scale())
+            scaler.step(optimizer)
+            scaler.update()
+            diagnostic = {'overflow_retries': retries, 'initial_loss_scale': initial_scale,
+                          'accepted_loss_scale': accepted_scale, 'next_loss_scale': float(scaler.get_scale()),
+                          'gradient_norm_before_clipping': float(norm), 'optimizer_updates': 1}
+            return loss, components, diagnostic
+        except BaseException:
+            optimizer.zero_grad(set_to_none=True)
+            _restore_step_state(model, rng, buffers)
+            raise
 
 
 @torch.no_grad()
@@ -260,7 +352,7 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
                                    {'params': heads, 'lr': config.learning_rate, 'name': 'task_heads'}],
                                   weight_decay=config.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.epochs, eta_min=1e-6)
-    scaler = torch.amp.GradScaler('cuda', enabled=config.amp)
+    scaler = torch.amp.GradScaler('cuda', enabled=config.amp, init_scale=config.amp_initial_scale, backoff_factor=.5)
     history, best_state, best_epoch, best_score, waiting, start_epoch = [], None, 0, float('inf'), 0, 1
     initialization = {'mode': 'ImageNet encoder; newly initialized task heads', 'old_task_heads_loaded': False,
                       'weights_enum': 'MobileNet_V3_Small_Weights.IMAGENET1K_V1'}
@@ -285,21 +377,13 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
         epoch_started = time.perf_counter()
         _configure_train(model, epoch, config)
         total, sample_count, components_sum = 0., 0, {}
+        epoch_overflow_retries, epoch_retried_batches = 0, 0
         for step, raw in enumerate(loaders['train'], 1):
             batch = _to_device(raw, device)
-            optimizer.zero_grad(set_to_none=True)
-            with torch.autocast('cuda', enabled=config.amp):
-                output = model(batch['image'])
-                loss, components = training_loss(output, batch, model.input_hw, config.heatmap_sigma)
-            if not torch.isfinite(loss):
-                raise RuntimeError('Nonfinite training loss; previous epoch checkpoints remain resumable')
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
-            norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.gradient_clip)
-            if not torch.isfinite(norm):
-                raise RuntimeError('Nonfinite gradients; previous epoch checkpoints remain resumable')
-            scaler.step(optimizer)
-            scaler.update()
+            loss, components, numerical = _checked_training_step(model, optimizer, scaler, batch, config,
+                {'task': task, 'epoch': epoch, 'batch': step, 'phase': 'training'}, progress_callback)
+            epoch_overflow_retries += numerical['overflow_retries']
+            epoch_retried_batches += int(numerical['overflow_retries'] > 0)
             size = len(raw['id'])
             sample_count += size
             total += float(loss.detach()) * size
@@ -320,6 +404,8 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
         record = {'epoch': epoch, 'train_loss': {key: value / sample_count for key, value in components_sum.items()},
                   'validation': validation, 'seconds': time.perf_counter() - epoch_started,
                   'best_epoch': best_epoch, 'is_best': improved,
+                  'amp_overflow_retries': epoch_overflow_retries, 'amp_retried_batches': epoch_retried_batches,
+                  'amp_loss_scale_after_epoch': float(scaler.get_scale()),
                   'next_learning_rates': [group['lr'] for group in optimizer.param_groups]}
         history.append(record)
         last_checkpoint = directory / f'epoch_{epoch:04d}.pt'
@@ -444,25 +530,15 @@ def smoke_test(dataset_root, output_path=None, configs=None, progress_callback=N
                                     shuffle=False, num_workers=0, pin_memory=True)
             model = InstrumentModel(task, validated['tasks'][task]['input_hw'], pretrained=True).to(device)
             optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
-            scaler = torch.amp.GradScaler('cuda', enabled=config.amp)
+            scaler = torch.amp.GradScaler('cuda', enabled=config.amp, init_scale=config.amp_initial_scale, backoff_factor=.5)
             _configure_train(model, config.warmup_epochs + 1, config)
             raw = next(iter(train_loader))
             torch.cuda.synchronize(device)
             started = time.perf_counter()
             batch = _to_device(raw, device)
-            optimizer.zero_grad(set_to_none=True)
-            with torch.autocast('cuda', enabled=config.amp):
-                output = model(batch['image'])
-                loss, components = training_loss(output, batch, model.input_hw, config.heatmap_sigma)
-            if not torch.isfinite(loss):
-                raise RuntimeError('Nonfinite smoke training loss')
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
-            gradient_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.gradient_clip)
-            if not torch.isfinite(gradient_norm):
-                raise RuntimeError('Nonfinite smoke gradients')
-            scaler.step(optimizer)
-            scaler.update()
+            loss, components, numerical = _checked_training_step(model, optimizer, scaler, batch, config,
+                {'task': task, 'phase': 'smoke'}, progress_callback)
+            gradient_norm = numerical['gradient_norm_before_clipping']
             torch.cuda.synchronize(device)
             train_seconds = time.perf_counter() - started
             train_count, train_loss = len(raw['id']), float(loss.detach())
@@ -488,6 +564,7 @@ def smoke_test(dataset_root, output_path=None, configs=None, progress_callback=N
                       'single_validation_batch_samples_per_second': len(val_raw['id']) / validation_seconds,
                       'training_loss': train_loss, 'validation_loss': float(val_loss),
                       'gradient_norm_before_clipping': float(gradient_norm),
+                      'numerical_step': numerical,
                       'peak_cuda_allocated_bytes': torch.cuda.max_memory_allocated(device),
                       'peak_cuda_reserved_bytes': torch.cuda.max_memory_reserved(device),
                       'parameter_count': sum(parameter.numel() for parameter in model.parameters()),

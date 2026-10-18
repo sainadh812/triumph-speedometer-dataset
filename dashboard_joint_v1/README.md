@@ -34,6 +34,8 @@ Reports include visible-point error in input pixels, per-landmark error, visibil
 4. Train the localizer, speed and RPM tasks sequentially. Initial AMP batch sizes are 16, 32, 64 respectively. Each task uses at most 40 epochs, at least 10 before early stopping, and patience 8. Colab smoke must verify that those batch sizes fit the actual runtime.
 5. Wait for verified Drive completion. The workflow preserves full epoch checkpoints and exports a smaller archive containing selected weights, reports and history before attempting automatic runtime release. If saving fails, it preserves recovery artifacts first; if those cannot be verified, it retains the runtime and reports the problem.
 
+Both smoke checks and training use guarded AMP updates. The initial loss scale is 256. If a finite loss produces nonfinite gradients, GradScaler skips the optimizer update and the same batch is retried at half the scale, up to eight retries and a minimum scale of 1. RNG state and mutable model buffers are restored before each retry. Only finite unscaled FP32 gradients with a finite clipping norm can update weights. Nonfinite losses or persistent gradient failures stop the run. Smoke and epoch reports record overflow retries and loss scales; this does not silently discard difficult batches or disable numerical checks.
+
 Private output layout is `SpeedometerTraining_API_v1/dashboard_joint_v1/<RUN_ID>/<task>/attempt_<timestamp>/`. The run folder contains an immutable `<attempt>_COMPLETE.json` receipt and results archive. Earlier attempts and their checkpoints remain available.
 
 ## Fresh and resumable runs
@@ -59,7 +61,7 @@ Validation alone selects weights. The test split is evaluated after selection an
 Offline checks can run without neural execution:
 
 ```text
-python -m unittest -v test_pure_contract.py test_workflow.py test_notebook.py
+python -m unittest -v test_pure_contract.py test_workflow.py test_notebook.py test_numerics.py
 ```
 
-These cover numerical transforms/metrics, label and manifest integrity, resume identities, mocked Drive preservation, completion restoration and runtime-release ordering. They do not replace the required Colab model smoke check.
+These cover numerical transforms/metrics, label and manifest integrity, resume identities, mocked Drive preservation, completion restoration, runtime-release ordering and bounded AMP retry control flow with NumPy fakes. They do not replace the required Colab model smoke check.
