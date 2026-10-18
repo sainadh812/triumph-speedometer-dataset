@@ -1,0 +1,55 @@
+{
+  "status": "public_manifest_sha256_and_all_part_urls_verified",
+  "commit": "af991b11529aeabd6355732b7562e85d857caa86",
+  "parts": [
+    {
+      "name": "learned_lcd_v1_dataset.zip.part00",
+      "http_status": 200,
+      "content_length": "47185920",
+      "expected_bytes": 47185920
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part01",
+      "http_status": 200,
+      "content_length": "47185920",
+      "expected_bytes": 47185920
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part02",
+      "http_status": 200,
+      "content_length": "47185920",
+      "expected_bytes": 47185920
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part03",
+      "http_status": 200,
+      "content_length": "47185920",
+      "expected_bytes": 47185920
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part04",
+      "http_status": 200,
+      "content_length": "47185920",
+      "expected_bytes": 47185920
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part05",
+      "http_status": 200,
+      "content_length": "47185920",
+      "expected_bytes": 47185920
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part06",
+      "http_status": 200,
+      "content_length": "47185920",
+      "expected_bytes": 47185920
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part07",
+      "http_status": 200,
+      "content_length": "10273377",
+      "expected_bytes": 10273377
+    }
+  ],
+  "note": "HEAD checks confirm public part availability; Colab downloader verifies each full part SHA256 at download. No model execution."
+}
