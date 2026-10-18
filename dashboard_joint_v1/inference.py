@@ -17,11 +17,11 @@ import numpy as np
 
 try:
     from .preprocess import (SIZES, POINT_NAMES, letterbox_matrix, dashboard_matrix,
-                             rpm_from_roi_matrix, warp_input)
+                             rpm_from_roi_matrix, warp_input, gray)
     from .dataset import PREPROCESSING_ID
 except ImportError:
     from preprocess import (SIZES, POINT_NAMES, letterbox_matrix, dashboard_matrix,
-                            rpm_from_roi_matrix, warp_input)
+                            rpm_from_roi_matrix, warp_input, gray)
     from dataset import PREPROCESSING_ID
 
 
@@ -343,13 +343,17 @@ class DashboardPredictor:
         if not frames:
             self.last_batch_timing = {'frames': 0, 'total_seconds': 0.}
             return []
-        local_inputs, matrices = [], []
+        local_inputs, matrices, gray_frames = [], [], []
         for frame in frames:
             if not isinstance(frame, np.ndarray) or frame.dtype != np.uint8 or frame.ndim != 3 or frame.shape[2] != 3:
                 raise ValueError('Each frame must be a uint8 BGR image')
             h, w = frame.shape[:2]
             matrix = letterbox_matrix([0, 0, w, h], SIZES['localizer'])
-            local_inputs.append(warp_input(frame, matrix, 'localizer')[0])
+            # Every branch uses the same original-resolution gray pixels. Avoid
+            # repeating full-frame BGR conversion for the speed and RPM crops.
+            source_gray = gray(frame)
+            gray_frames.append(source_gray)
+            local_inputs.append(warp_input(source_gray, matrix, 'localizer')[0])
             matrices.append(matrix)
         local_start = time.perf_counter()
         local = self._run('localizer', local_inputs)
@@ -382,7 +386,7 @@ class DashboardPredictor:
             # Decode original pixels once, mask in SPEED coordinates with the exact
             # learned mask, retaining the same gray128 convention as training.
             speed_matrix = dashboard_matrix(source_box, frame.shape)
-            speed_image = warp_input(frame, speed_matrix, 'speed')[0]
+            speed_image = warp_input(gray_frames[index], speed_matrix, 'speed')[0]
             speed_mask = cv2.warpPerspective(mask, speed_matrix@inv, SIZES['speed'], flags=cv2.INTER_NEAREST)
             speed_image[speed_mask > 0] = 128
             speed_inputs.append(speed_image)
@@ -392,7 +396,7 @@ class DashboardPredictor:
                 validated_roi(prediction['points'][4:], prediction['visibility'][4:], self.thresholds)
                 rpm_matrix = rpm_from_roi_matrix(original_points[4:])
                 project_points(original_points[4:], rpm_matrix)
-                rpm_inputs.append(warp_input(frame, rpm_matrix, 'rpm')[0])
+                rpm_inputs.append(warp_input(gray_frames[index], rpm_matrix, 'rpm')[0])
                 rpm_pending.append((index, rpm_matrix))
             except (ValueError, cv2.error, np.linalg.LinAlgError) as exc:
                 row['rpm']['reason'] = str(exc)

@@ -250,19 +250,35 @@ def _encode_h264(source, target):
         raise ValueError('H264 output was not created')
 
 
+def _task_inference_flags(prediction):
+    """Executed readers retain raw landmark visibility even if geometry rejects.
+
+    An empty visibility dictionary is the predictor's explicit skipped-reader
+    representation; unavailable numeric readings alone do not mean a skip.
+    """
+    return {'localizer': True,
+            'speed': bool(prediction.get('speed', {}).get('point_visibility')),
+            'rpm': bool(prediction.get('rpm', {}).get('point_visibility'))}
+
+
 def process_video(source, output_dir, predictor, batch_size=16, last_seconds=120., label='video'):
     """Decode each selected frame once; batch prediction keeps original order."""
     import cv2
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=False)
     started = time.perf_counter()
+    print(f'{label}: scanning source frame timestamps; prediction has not started.', flush=True)
+    before = time.perf_counter()
     metadata = probe_video(source)
+    initial_probe_seconds = time.perf_counter() - before
     first, stop, requested_start, clip_end = clip_indices(metadata, last_seconds)
     selected_count = stop - first
     # CFR output contains every selected frame. For VFR sources original PTS
     # stays in CSV/JSONL; playback cadence is explicitly documented as CFR.
     playback_duration = clip_end - metadata['timestamps'][first]
     output_fps = selected_count / playback_duration
+    print(f'{label}: {selected_count} selected frames, source indices {first}..{stop-1}; '
+          f'timestamp scan {initial_probe_seconds:.2f}s. Decoding source prefix before selected window.', flush=True)
     capture = cv2.VideoCapture(str(source))
     if not capture.isOpened():
         raise ValueError('Could not open source video')
@@ -270,11 +286,14 @@ def process_video(source, output_dir, predictor, batch_size=16, last_seconds=120
     final = output_dir / 'labeled.mp4'
     csv_path, jsonl_path = output_dir / 'predictions.csv', output_dir / 'predictions.jsonl'
     writer = None
-    timers = {'decode_seconds': 0., 'model_pipeline_seconds': 0., 'draw_seconds': 0.,
+    timers = {'initial_probe_seconds': initial_probe_seconds,
+              'decode_seconds': 0., 'model_pipeline_seconds': 0., 'draw_seconds': 0.,
               'intermediate_encode_seconds': 0., 'prediction_log_seconds': 0.}
+    decode_breakdown = {'prefix_decode_seconds': 0., 'selected_decode_seconds': 0.}
     processed, frame_index, batch, batch_indices = 0, 0, [], []
     batch_timings = []
     statuses = {'speed_available': 0, 'rpm_available': 0}
+    task_frames = {'localizer': 0, 'speed': 0, 'rpm': 0, 'all_three': 0}
     output_shape = None
     with csv_path.open('w', newline='', encoding='utf8') as csv_file, jsonl_path.open('w', encoding='utf8') as log_file:
         columns = ['frame_index', 'clip_frame_index', 'source_time_seconds', 'speed_kmh',
@@ -310,6 +329,10 @@ def process_video(source, output_dir, predictor, batch_size=16, last_seconds=120
                 timers['intermediate_encode_seconds'] += time.perf_counter() - before
                 before = time.perf_counter()
                 speed, rpm = prediction.get('speed', {}), prediction.get('rpm', {})
+                executed = _task_inference_flags(prediction)
+                for task, ran in executed.items():
+                    task_frames[task] += int(ran)
+                task_frames['all_three'] += int(all(executed.values()))
                 record = {'frame_index': index, 'clip_frame_index': processed,
                           'source_time_seconds': metadata['timestamps'][index],
                           'speed_kmh': speed.get('value_kmh'),
@@ -329,7 +352,10 @@ def process_video(source, output_dir, predictor, batch_size=16, last_seconds=120
             batch, batch_indices = [], []
             if processed % (batch_size * 10) == 0 or processed == selected_count:
                 elapsed = time.perf_counter() - started
-                print(f'{label}: {processed}/{selected_count} frames; {processed / elapsed:.2f} processing FPS', flush=True)
+                pipeline_fps = processed / max(timers['model_pipeline_seconds'], 1e-12)
+                print(f'{label}: {processed}/{selected_count} predicted frames; '
+                      f'prediction_pipelineFPS={pipeline_fps:.2f} (conditional task coverage); '
+                      f'elapsed={elapsed:.2f}s; export pending.', flush=True)
         try:
             while frame_index < stop:
                 before = time.perf_counter()
@@ -337,7 +363,9 @@ def process_video(source, output_dir, predictor, batch_size=16, last_seconds=120
                     ok, frame = capture.grab(), None
                 else:
                     ok, frame = capture.read()
-                timers['decode_seconds'] += time.perf_counter() - before
+                decode_elapsed = time.perf_counter() - before
+                timers['decode_seconds'] += decode_elapsed
+                decode_breakdown['prefix_decode_seconds' if frame_index < first else 'selected_decode_seconds'] += decode_elapsed
                 if not ok:
                     raise ValueError('Source decode ended before its verified timestamp sequence')
                 if frame_index >= first:
@@ -353,9 +381,11 @@ def process_video(source, output_dir, predictor, batch_size=16, last_seconds=120
                 writer.release()
     if processed != selected_count:
         raise ValueError('Not all frames in the requested final window were processed')
+    print(f'{label}: predictions complete. Encoding full-frame H264 output now.', flush=True)
     before = time.perf_counter()
     _encode_h264(raw, final)
     timers['h264_encode_seconds'] = time.perf_counter() - before
+    print(f'{label}: H264 encoding complete ({timers["h264_encode_seconds"]:.2f}s). Verifying output frame count.', flush=True)
     before = time.perf_counter()
     encoded = probe_video(final)
     if encoded['decoded_timestamp_count'] != processed:
@@ -373,8 +403,14 @@ def process_video(source, output_dir, predictor, batch_size=16, last_seconds=120
               'original_decoded_height_width': list(output_shape),
               'encoded_height_width': [encoded['stream_height'], encoded['stream_width']],
               'timing': timers, 'model_pipeline_fps': processed / max(timers['model_pipeline_seconds'], 1e-12),
+              'prediction_pipeline_fps': processed / max(timers['model_pipeline_seconds'], 1e-12),
+              'decode_timing_breakdown': decode_breakdown,
+              'decode_timing_note': 'Breakdown sums to timing.decode_seconds; it is not additional work and must not be added a second time.',
               'end_to_end_processing_fps': processed / max(timers['total_processing_seconds'], 1e-12),
               'availability': statuses, 'every_selected_frame_processed': True,
+              'actual_task_inference_frames': task_frames,
+              'actual_task_inference_coverage': {task: count / processed for task, count in task_frames.items()},
+              'pipeline_work_scope': 'Conditional work: localizer runs every frame; speed requires a localized dashboard, RPM requires a valid RPM region. Pipeline FPS is not a benchmark with all three readers forced on every frame. Rejected numeric readings can still have executed their reader.',
               'batch_timings': batch_timings,
               'warmup_policy': 'No frames are discarded for warmup. First-batch startup costs are included. Models remain loaded across source videos.',
               'timing_scope': 'Model pipeline includes preprocessing, CUDA prediction and geometry with CUDA synchronized before predict_frames returns. Model construction and Drive IO are excluded from per-video processing time and included in run wall time.',
@@ -423,6 +459,7 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
     try:
         from .model import require_colab_cuda
         require_colab_cuda()
+        print('Video tests: validating completed training receipt and private source references.', flush=True)
         batch_size, seconds = int(config.get('batch_size', 16)), float(config.get('last_seconds', 120))
         if not 1 <= batch_size <= 256 or not math.isfinite(seconds) or not 0 < seconds <= 120:
             raise ValueError('Use batch size 1..256 and a final window up to 120 seconds')
@@ -432,19 +469,23 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
         complete, receipt = resolve_complete(store, prepared, run_ref)
         workdir = Path(prepared['workdir']) / 'video_tests'
         cache = workdir / 'cache'
+        print('Video tests: downloading/verifying selected model archive from Drive.', flush=True)
         archive = _download_verified(store, complete['archive'], cache / (_file_digest(complete['archive']) + '.zip'))
         expected = dict(config.get('expected_identity', {}))
         if prepared.get('dataset_manifest_sha256'):
             expected.setdefault('dataset_manifest_sha256', prepared['dataset_manifest_sha256'])
         paths, model_provenance = extract_models(archive, cache / _file_digest(complete['archive']), complete, expected)
         source_paths = []
-        for ref in videos:
+        for index, ref in enumerate(videos, 1):
+            print(f'Video tests: downloading/verifying source {index}/{len(videos)} from Drive.', flush=True)
             source_paths.append(_download_verified(store, ref, cache / ('source_' + ref['sha256'] + '.mp4')))
         folder = store.ensure_folder('video_test_' + attempt, complete['drive_run_folder_id'])
         output = workdir / attempt
         output.mkdir(parents=True, exist_ok=False)
         from .inference import DashboardPredictor
+        print('Video tests: loading the three verified models on Colab CUDA.', flush=True)
         predictor = DashboardPredictor(paths, batch_size=batch_size)
+        print('Video tests: models loaded; beginning frame processing.', flush=True)
         reports = []
         def save(path, name=None):
             ref = _verified_upload(store, path, folder['id'], name)
@@ -459,6 +500,7 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
             write_json(directory / 'report.json', report)
             artifacts = {}
             for name in ('labeled.mp4', 'predictions.csv', 'predictions.jsonl', 'report.json'):
+                print(f'{label}: uploading/verifying {name} in Drive.', flush=True)
                 artifacts[name] = save(directory / name, directory.name + '_' + name)
             reports.append({'report': report, 'artifacts': artifacts})
         provenance = {'training_run_id': complete['run_id'], 'training_attempt': complete['attempt'],
@@ -470,12 +512,14 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
                       'source_references': [{key: ref[key] for key in ('id', 'sha256', 'size', 'name')} for ref in videos],
                       'no_old_cpu_matching': True, 'location': 'Google Colab CUDA'}
         write_json(output / 'provenance.json', provenance)
+        print('Video tests: saving provenance and packaging the combined results archive.', flush=True)
         save(output / 'provenance.json')
         result_archive = output / 'video_results.zip'
         with zipfile.ZipFile(result_archive, 'w', zipfile.ZIP_STORED) as bundle:
             for path in sorted(output.rglob('*')):
                 if path.is_file() and path != result_archive:
                     bundle.write(path, path.relative_to(output).as_posix())
+        print('Video tests: uploading/verifying the combined results archive in Drive.', flush=True)
         saved_archive = save(result_archive)
         saved_summary = {'status': 'complete', 'attempt': attempt, 'training_run_id': complete['run_id'],
                          'training_attempt': complete['attempt'], 'training_complete_id': receipt['id'],

@@ -14,7 +14,9 @@ The exported task manifests declare actual input dimensions and semantic point o
 
 The eight semantic points are `lcd_tl, lcd_tr, lcd_br, lcd_bl, rpm_roi_tl, rpm_roi_tr, rpm_roi_br, rpm_roi_bl`. The last four describe the RPM crop rectangle, not physical LCD corners. They can support a direct RPM-region warp when the full LCD extends beyond the frame. Their targets are derived only from credible source geometry and supervised only when the crop corners fall inside the image. Their destination rectangle and pixel-center convention must match the RPM training crop exactly. They do not define the LCD segmentation mask.
 
-Unavailable or uncertain landmarks are marked invisible and contribute no location loss. Their visibility labels still train the visibility head. Heatmap supervision uses spatial cross-entropy on visible points; LCD segmentation uses foreground-weighted BCE and Dice. Dashboard-absent examples have an empty LCD mask and unavailable corners.
+New schema-2 datasets distinguish known invisible landmarks from unknown labels using `visibility_known`. Unknown labels contribute neither location nor visibility loss, and are excluded from visibility metrics. Older archives without this field retain their original supervision; they are not silently relabeled. Heatmap supervision uses spatial cross-entropy on visible points; LCD segmentation uses foreground-weighted BCE and Dice. Dashboard-absent examples have an empty LCD mask and known unavailable corners.
+
+Reviewed `rpm_roi_corners` and `rpm_roi_review` can specify RPM crop geometry independently of whether the numbers or fill endpoint are readable. The review must explicitly mark the geometry reviewed and explain its basis. Without reviewed geometry or sufficient existing numeric anchors to justify the legacy derived region, the region's visibility is unknown rather than a negative training target. Direct reviewed crop corners also support RPM training when the far-right LCD corners are outside the image. Numeric labels are never invented to justify a crop. New datasets require the updated trainer and a new run identity.
 
 ## Data and evaluation limits
 
@@ -45,6 +47,8 @@ Private output layout is `SpeedometerTraining_API_v1/dashboard_joint_v1/<RUN_ID>
 `video_test.py` processes every decoded frame from each video's final 120 seconds. The output preserves the full frame, with dashboard/LCD outlines, speed ticks and needle, RPM region and landmarks, speed and larger RPM text. Missing or inconsistent geometry produces an unavailable reading and a recorded reason; raw landmarks remain inspectable. The speed reader fits named ticks to a reviewed training reference plane before angle interpolation, while RPM uses the predicted scale anchors and bar endpoint. These are indicated-reading estimates, not independent measurements of vehicle speed or engine RPM.
 
 Outputs include H264 MP4, per-frame CSV/JSONL, timings and model/source provenance. Reports distinguish input playback FPS, model-pipeline throughput, and full processing throughput including video preparation and encoding. First-batch startup is included, and no frames are discarded for warmup. Every output and a result archive are checksum verified in Drive before the runtime is released. This inspection uses the source recordings and is not an independent-recording accuracy test.
+
+Prediction-pipeline FPS describes conditional work: localization runs every frame, while speed and RPM readers require usable regions. Reports now include actual per-task execution coverage, initial timestamp-scan time, and separate prefix/selected-window decode times. These decode components are already included in total decode time. Grayscale conversion is shared once per original frame across all three branches; crop geometry, resolution, masks, and rejection thresholds are unchanged.
 
 ## Fresh and resumable runs
 

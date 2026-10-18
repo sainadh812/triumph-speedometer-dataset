@@ -85,6 +85,20 @@ class InstrumentModel(nn.Module):
         return result
 
 
+def visibility_supervision_loss(logits, visible, visibility_known=None):
+    """BCE on known visibility labels only; no guessed negative for unknowns."""
+    visible = visible.float()
+    known = torch.ones_like(visible) if visibility_known is None else visibility_known.float()
+    if known.shape != visible.shape or logits.shape != visible.shape:
+        raise ValueError('Visibility supervision shapes differ')
+    if bool(torch.any((known != 0) & (known != 1))):
+        raise ValueError('visibility_known must contain only zero or one')
+    if bool(torch.any((visible > 0) & (known == 0))):
+        raise ValueError('A visible landmark must have known visibility')
+    per_point = F.binary_cross_entropy_with_logits(logits.float(), visible, reduction='none')
+    return (per_point * known).sum() / known.sum().clamp_min(1.)
+
+
 def training_loss(output, batch, input_hw, sigma=1.5):
     """Spatial CE on visible points; no guessed location loss for absent points."""
     logits = output['heatmap_logits'].float()
@@ -97,7 +111,7 @@ def training_loss(output, batch, input_hw, sigma=1.5):
     per_point = -(target.flatten(2) * logits.flatten(2).log_softmax(-1)).sum(-1)
     visible = batch['visible'].float()
     heatmap_loss = (per_point * visible).sum() / visible.sum().clamp_min(1.)
-    visibility_loss = F.binary_cross_entropy_with_logits(output['visibility_logits'].float(), visible)
+    visibility_loss = visibility_supervision_loss(output['visibility_logits'], visible, batch.get('visibility_known'))
     pieces = {'heatmap': heatmap_loss, 'visibility': visibility_loss}
     loss = heatmap_loss + .25 * visibility_loss
     if 'lcd_logits' in output:

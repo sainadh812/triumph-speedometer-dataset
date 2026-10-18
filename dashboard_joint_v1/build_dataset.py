@@ -16,9 +16,9 @@ import zipfile
 import cv2
 import numpy as np
 try:
-    from .preprocess import SIZES, POINT_NAMES, project, letterbox_matrix, dashboard_matrix, rpm_matrix, rpm_roi_corners, warp_input, map_labels
+    from .preprocess import SIZES, POINT_NAMES, project, letterbox_matrix, dashboard_matrix, rpm_matrix, rpm_roi_corners, rpm_from_roi_matrix, warp_input, map_labels
 except ImportError:
-    from preprocess import SIZES, POINT_NAMES, project, letterbox_matrix, dashboard_matrix, rpm_matrix, rpm_roi_corners, warp_input, map_labels
+    from preprocess import SIZES, POINT_NAMES, project, letterbox_matrix, dashboard_matrix, rpm_matrix, rpm_roi_corners, rpm_from_roi_matrix, warp_input, map_labels
 
 def digest(path):
     h = hashlib.sha256()
@@ -86,24 +86,63 @@ def photometric(img,rng,variant):
     if ok: out=cv2.imdecode(buf,cv2.IMREAD_GRAYSCALE)
     return out, {'gamma':gamma,'gain':gain,'noise_sigma':sigma,'soft_glare':glare,'blur':blur,'jpeg_quality':quality}
 
-def annotation_points(row,task,source_shape=None):
+def reviewed_rpm_roi(row):
+    explicit=row.get('rpm_roi_corners')
+    if explicit is None: return None
+    review=row.get('rpm_roi_review',{})
+    if review.get('reviewed') is not True or not str(review.get('reason','')).strip():
+        raise ValueError('Explicit RPM crop geometry requires a review and reason')
+    rpm_matrix(explicit) # finite, convex, nondegenerate semantic quad
+    return np.asarray(explicit,np.float32)
+
+def rpm_crop_geometry(row):
+    """Choose reviewed context corners even if the far side of the LCD is cut off."""
+    roi=reviewed_rpm_roi(row)
+    if roi is not None: return roi, rpm_from_roi_matrix
+    corners=row.get('lcd_rectification_corners') or row.get('lcd_corners')
+    if not corners or any(p is None for p in corners): return None, None
+    rpm_matrix(corners)
+    return np.asarray(corners,np.float32), rpm_matrix
+
+def annotation_targets(row,task,source_shape=None):
+    """Return geometry, visibility and whether visibility was actually reviewed.
+
+    Being unable to read RPM digits does not establish that the RPM crop is
+    absent. Explicit reviewed crop geometry is independent of numeric labels.
+    """
     if task=='localizer':
         corners=row.get('lcd_corners',[])
         corners=(corners+[None]*4)[:4]
         vis=row.get('lcd_corner_visibility',row.get('lcd_corner_visible',[p is not None for p in corners]))
         points=[p if p is not None else [0,0] for p in corners]
         quad=row.get('lcd_rectification_corners') or row.get('lcd_corners')
-        roi=np.zeros((4,2),np.float32);roi_vis=[False]*4
+        roi=np.zeros((4,2),np.float32);roi_vis=[False]*4;roi_known=[False]*4
         justified=sum(v.get('visible',False) for v in row.get('rpm_points',{}).values())>=3
-        if justified and quad and len(quad)==4 and all(p is not None for p in quad):
+        explicit=reviewed_rpm_roi(row)
+        if explicit is not None:
+            roi=explicit
+            roi_known=[True]*4
+        elif justified and quad and len(quad)==4 and all(p is not None for p in quad):
             rpm_matrix(quad) # validate nondegenerate semantic geometry first
             roi=rpm_roi_corners(quad)
+            roi_known=[True]*4
+        if all(roi_known):
+            if source_shape is None: raise ValueError('Source shape required for RPM crop visibility')
             hh,ww=source_shape[:2]
             roi_vis=((roi[:,0]>=0)&(roi[:,0]<=ww-1)&(roi[:,1]>=0)&(roi[:,1]<=hh-1)).tolist()
-        return np.array(points+roi.tolist(),np.float32),list(vis)+roi_vis
+        return np.array(points+roi.tolist(),np.float32),list(vis)+roi_vis,[True]*4+roi_known
     points=row[task+'_points']
     values=[points.get(n,{}) for n in POINT_NAMES[task]]
-    return np.array([v.get('xy') or [0,0] for v in values],np.float32),[bool(v.get('visible',False) and v.get('xy') is not None) for v in values]
+    visible=[bool(v.get('visible',False) and v.get('xy') is not None) for v in values]
+    known=[bool(v.get('visibility_known',True)) for v in values]
+    if any(v and not k for v,k in zip(visible,known)):
+        raise ValueError('Visible landmarks must have known visibility')
+    return np.array([v.get('xy') or [0,0] for v in values],np.float32),visible,known
+
+def annotation_points(row,task,source_shape=None):
+    # Keep the geometry-only API for audits and earlier callers.
+    points,visible,_=annotation_targets(row,task,source_shape)
+    return points,visible
 
 def seed_for(name):
     return int(hashlib.sha256(name.encode()).hexdigest()[:16],16)
@@ -134,14 +173,14 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
         present=int(row.get('present',bool(polygon)))
         variants=train_variants if split=='train' else val_variants if split=='val' else 1
         for task,size in SIZES.items():
-            points,visible=annotation_points(row,task,image.shape)
+            points,visible,visibility_known=annotation_targets(row,task,image.shape)
             if task=='speed' and (not present or sum(visible)<3):
                 skipped.append({'id':row['id'],'task':task,'reason':'insufficient visible speed supervision'});continue
             if task=='rpm':
-                corners=row.get('lcd_rectification_corners') or row.get('lcd_corners')
-                if not corners or any(p is None for p in corners) or sum(visible)<3:
+                corners,crop_matrix=rpm_crop_geometry(row)
+                if corners is None or sum(visible)<3:
                     skipped.append({'id':row['id'],'task':task,'reason':'no justified quad or insufficient visible RPM supervision'});continue
-                baseline=rpm_matrix(corners)
+                baseline=crop_matrix(corners)
                 mapped,mappedvis=map_labels(points,visible,baseline,size)
                 # Every visible anchor must fit. Never silently train a clipped scale.
                 if sum(mappedvis)<sum(visible):
@@ -156,7 +195,7 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
                     base=dashboard_matrix(polygon,image.shape,jitter=jitter)
                 else:
                     perturb=None if variant==0 else rng.normal(0,.007,(4,2))*np.linalg.norm(np.asarray(corners)[1]-np.asarray(corners)[0])
-                    base=rpm_matrix(corners,perturb)
+                    base=crop_matrix(corners if perturb is None else corners+perturb)
                 aug,geo=augment_geometry(rng,size,task,variant); matrix=aug@base
                 out,mask=warp_input(image,matrix,task,lcd)
                 out,photo=photometric(out,rng,variant)
@@ -171,6 +210,7 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
                 if task=='speed' and sum(vis)<3: continue
                 item={'id':ident,'source_id':row['id'],'split':split,'image':f'images/{ident}.png',
                       'width':size[0],'height':size[1],'points':pts.tolist(),'visible':vis.tolist(),
+                      'visibility_known':list(visibility_known),
                       'lighting':meta['lighting'],'state':row.get('state','uncertain'),
                       'source_time_seconds':meta['time_seconds'],'transform':matrix.tolist(),
                       'augmentation':{'geometry':geo,'appearance':photo}}
@@ -184,6 +224,7 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
                                  'present':int(present and box[2]>box[0] and box[3]>box[1])})
                     if not item['present']:
                         mask[:]=0;item['points']=[[0,0]]*8;item['visible']=[False]*8
+                        item['visibility_known']=[True]*8
                     cv2.imwrite(str(output/task/item['lcd_mask']),mask)
                 cv2.imwrite(str(output/task/item['image']),out)
                 samples[task].append(item)
@@ -203,7 +244,7 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
                     out,_=photometric(out,rng,v)
                     item={'id':ident,'source_id':row['id'],'split':split,'image':f'images/{ident}.png',
                           'lcd_mask':f'masks/{ident}.png','width':512,'height':512,'points':[[0,0]]*8,
-                          'visible':[False]*8,'present':0,'dashboard_box':[0,0,0,0],'negative':True,
+                          'visible':[False]*8,'visibility_known':[True]*8,'present':0,'dashboard_box':[0,0,0,0],'negative':True,
                           'lighting':meta['lighting']}
                     cv2.imwrite(str(output/'localizer'/item['image']),out)
                     cv2.imwrite(str(output/'localizer'/item['lcd_mask']),np.zeros((512,512),np.uint8))
@@ -225,12 +266,13 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
             image=cv2.GaussianBlur(image,(3,3),.65) # soften perfectly regular rendered LCD stripes
             image,appearance=photometric(image,rng,index)
             row={k:v for k,v in example.items() if k not in ('image','points','visible','canonical_fill_mask')}
-            row.update(id=ident,image=f'images/{ident}.png',width=256,height=384,points=pts.tolist(),visible=vis.tolist(),
+            row.update(id=ident,image=f'images/{ident}.png',width=256,height=384,points=pts.tolist(),visible=vis.tolist(),visibility_known=[True]*len(vis),
                        lighting='night',state='synthetic_display',source_time_seconds=meta['time_seconds'],
                        augmentation={'geometry':geometry,'appearance':appearance},transform=matrix.tolist())
             cv2.imwrite(str(output/'rpm'/row['image']),image)
             samples['rpm'].append(row)
-    manifest={'schema_version':1,'dataset_id':output.name,'created_utc':datetime.now(timezone.utc).isoformat(),
+    manifest={'schema_version':2,'dataset_id':output.name,'created_utc':datetime.now(timezone.utc).isoformat(),
+              'visibility_policy':'Unknown visibility is excluded from visibility loss and metrics. Reviewed RPM crop geometry is independent of readable RPM anchors.',
               'description':'Reviewed real states with deterministic augmentation; additional RPM bar renders explicitly marked synthetic, not physical measurements.',
               'split_policy':'Time-block development splits within two recordings. All descendants stay with source. Not unseen-recording evaluation.',
               'source_count':len(annotations),'synthetic_rpm_examples':sum(bool(r.get('synthetic')) for r in samples['rpm']),
@@ -242,7 +284,8 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
         write(output/task/'samples.json',{'point_names':POINT_NAMES[task],'input_size':list(SIZES[task]),'samples':rows})
         manifest['tasks'][task]={'input_size':list(SIZES[task]),'point_names':POINT_NAMES[task], 'counts':counts,
                                 'source_counts':dict(Counter(by_id[s]['split'] for s in {x['source_id'] for x in rows})),
-                                'visible_counts':dict(zip(POINT_NAMES[task],np.asarray([r['visible'] for r in rows]).sum(0).astype(int).tolist()))}
+                                'visible_counts':dict(zip(POINT_NAMES[task],np.asarray([r['visible'] for r in rows]).sum(0).astype(int).tolist())),
+                                'unknown_visibility_counts':dict(zip(POINT_NAMES[task],(~np.asarray([r['visibility_known'] for r in rows],bool)).sum(0).astype(int).tolist()))}
     # Private provenance stays in private archive. Exclude the raw videos.
     write(output/'provenance'/'annotations.json',{'sources':annotations})
     write(output/'provenance'/'source_inventory.json',{'sources':inventory})

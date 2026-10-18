@@ -56,6 +56,9 @@ def validate_dataset(dataset_root):
     root = Path(dataset_root).resolve()
     manifest_path = root / 'dataset_manifest.json'
     manifest = json.loads(manifest_path.read_text(encoding='utf8'))
+    schema_version = manifest.get('schema_version', 1)
+    if type(schema_version) is not int or schema_version not in (1, 2):
+        raise ValueError('Unsupported dataset schema_version; expected 1 or 2')
     hashes = _hash_rows(manifest)
     if not hashes:
         raise ValueError('Empty dataset hash manifest')
@@ -94,6 +97,8 @@ def validate_dataset(dataset_root):
         ids = set()
         counts = {'train': 0, 'val': 0, 'test': 0}
         for row in rows:
+            if schema_version == 2 and 'visibility_known' not in row:
+                raise ValueError('Schema 2 requires visibility_known on every sample')
             if row['id'] in ids:
                 raise ValueError('Duplicate sample ID')
             ids.add(row['id'])
@@ -141,10 +146,25 @@ def validate_points(row, count, input_hw):
         raise ValueError('Invalid landmark arrays')
     if np.any(points[~visible] != 0):
         raise ValueError('Unavailable points must be[0,0]')
+    validate_visibility_known(row, count, visible)
     if visible.any() and (np.any(points[visible] < 0) or
                          np.any(points[visible] > [input_hw[1] - 1, input_hw[0] - 1])):
         raise ValueError('Visible landmark outside image')
     return points, visible
+
+
+def validate_visibility_known(row, count, visible):
+    """Unknown labels are neither visibility positives nor negatives.
+
+    Older archives omit this optional field and retain their original complete
+    visibility supervision. New archives must supply actual Boolean entries.
+    """
+    known = np.asarray(row.get('visibility_known', [True] * count))
+    if known.shape != (count,) or known.dtype != np.bool_:
+        raise ValueError('visibility_known must be one Boolean per landmark')
+    if np.any(np.asarray(visible, bool) & ~known):
+        raise ValueError('A visible landmark must have known visibility')
+    return known
 
 
 def normalize_gray(image):
@@ -168,7 +188,9 @@ class TaskDataset:
         row = self.rows[index]
         image = cv2.imread(str(self.root / row['image']), cv2.IMREAD_GRAYSCALE)
         points, visible = validate_points(row, len(POINT_NAMES[self.task]), self.input_hw)
+        known = validate_visibility_known(row, len(POINT_NAMES[self.task]), visible)
         result = {'image': normalize_gray(image), 'points': points, 'visible': visible.astype(np.float32),
+                  'visibility_known': known.astype(np.float32),
                   'id': row['id'], 'source_id': row['source_id']}
         if self.task == 'localizer':
             mask = cv2.imread(str(self.root / row['lcd_mask']), cv2.IMREAD_GRAYSCALE)

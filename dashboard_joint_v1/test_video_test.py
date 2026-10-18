@@ -135,8 +135,11 @@ class VideoTests(unittest.TestCase):
         class Predictor:
             def predict_frames(self, batch):
                 batch_sizes.append(len(batch))
-                return [{'speed': {'value_kmh': float(frame[0, 0, 0]), 'reason': None},
-                         'rpm': {'value': None, 'reason': 'bar_not_visible'}, 'lcd_status': 'unavailable'} for frame in batch]
+                return [{'speed': {'value_kmh': float(frame[0, 0, 0]), 'reason': None,
+                                   'point_visibility': {'pivot': .9, 'tip': .9}},
+                         'rpm': {'value': None, 'reason': 'bar_not_visible' if frame[0, 0, 0] % 2 == 0 else 'rpm_roi_corner_not_visible',
+                                 'point_visibility': {'bar_end': .1} if frame[0, 0, 0] % 2 == 0 else {}},
+                         'lcd_status': 'unavailable'} for frame in batch]
         with tempfile.TemporaryDirectory() as temp, module() as runner:
             root = Path(temp)
             source = root / 'source.mp4'
@@ -158,7 +161,20 @@ class VideoTests(unittest.TestCase):
             self.assertEqual(report['availability']['rpm_available'], 0)
             self.assertEqual(report['first_source_timestamp_seconds'], 3.)
             self.assertEqual(report['output_playback_fps'], 2.)
+            self.assertEqual(report['actual_task_inference_frames'], {'localizer': 6, 'speed': 6, 'rpm': 3, 'all_three': 3})
+            self.assertEqual(report['actual_task_inference_coverage']['rpm'], .5)
+            self.assertGreaterEqual(report['timing']['initial_probe_seconds'], 0)
+            self.assertAlmostEqual(report['timing']['decode_seconds'], sum(report['decode_timing_breakdown'].values()))
+            self.assertEqual(report['prediction_pipeline_fps'], report['model_pipeline_fps'])
             self.assertFalse((root / 'out/labeled_intermediate.mp4').exists())
+
+    def test_unavailable_reading_does_not_imply_reader_was_skipped(self):
+        with module() as runner:
+            self.assertEqual(runner._task_inference_flags({
+                'speed': {'value_kmh': None, 'reason': 'predicted_pivot_inconsistent_with_tick_plane',
+                          'point_visibility': {'pivot': .9}},
+                'rpm': {'value': None, 'reason': 'rpm_roi_corner_not_visible', 'point_visibility': {}}
+            }), {'localizer': True, 'speed': True, 'rpm': False})
 
     def test_all_results_verified_before_release_and_provenance_in_archive(self):
         events = []

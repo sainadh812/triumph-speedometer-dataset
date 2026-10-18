@@ -241,11 +241,30 @@ def _checked_training_step(model, optimizer, scaler, batch, config, context=None
             raise
 
 
+def _accumulate_evaluation_components(sums, weights, components, batch_size, visibility_count):
+    """Unknown visibility entries have no validation-loss denominator weight."""
+    for key, raw in components.items():
+        value = float(raw)
+        weight = visibility_count if key == 'visibility' else batch_size
+        if key == 'total':
+            # Average all other loss terms as before; add the globally known-
+            # label-weighted visibility term back after all batches finish.
+            value -= .25 * float(components['visibility'])
+        sums[key] = sums.get(key, 0.) + value * weight
+        weights[key] = weights.get(key, 0.) + weight
+
+
+def _finalize_evaluation_losses(sums, weights):
+    result = {key: value / weights[key] if weights[key] else 0. for key, value in sums.items()}
+    result['total'] += .25 * result['visibility']
+    return result
+
+
 @torch.no_grad()
 def evaluate(model, loader, device, config, names):
     model.eval()
     metrics = MetricAccumulator(names)
-    sums, count = {}, 0
+    sums, weights, count = {}, {}, 0
     for raw in loader:
         batch = _to_device(raw, device)
         with torch.autocast('cuda', enabled=config.amp):
@@ -255,20 +274,21 @@ def evaluate(model, loader, device, config, names):
             raise RuntimeError('Nonfinite evaluation loss')
         size = len(raw['id'])
         count += size
-        for key, value in components.items():
-            sums[key] = sums.get(key, 0.) + float(value) * size
+        visibility_count = (float(raw['visibility_known'].sum()) if 'visibility_known' in raw
+                            else raw['visible'].numel())
+        _accumulate_evaluation_components(sums, weights, components, size, visibility_count)
         points = heatmap_to_points(output['heatmap_logits'].float().cpu().numpy(), model.input_hw)
-        kwargs = {}
+        kwargs = {'visibility_known': raw['visibility_known'].numpy()} if 'visibility_known' in raw else {}
         if model.task == 'localizer':
-            kwargs = {'presence': output['presence_logits'].float().sigmoid().cpu().numpy(),
+            kwargs.update({'presence': output['presence_logits'].float().sigmoid().cpu().numpy(),
                       'present': raw['present'].numpy(),
                       'masks': output['lcd_logits'].float().sigmoid().cpu().numpy() >= .5,
                       'mask_targets': raw['mask'].numpy() >= .5,
-                      'boxes': output['dashboard_box'].float().cpu().numpy(), 'box_targets': raw['box'].numpy()}
+                      'boxes': output['dashboard_box'].float().cpu().numpy(), 'box_targets': raw['box'].numpy()})
         metrics.add(points, raw['points'].numpy(), raw['visible'].numpy(),
                     output['visibility_logits'].float().sigmoid().cpu().numpy(), **kwargs)
     result = metrics.result()
-    result['loss'] = {key: value / count for key, value in sums.items()}
+    result['loss'] = _finalize_evaluation_losses(sums, weights)
     # Validation losses are comparable only within a task/identity, not across tasks.
     result['selection_score'] = result['loss']['total']
     result['selection_definition'] = 'Minimum combined validation loss; never use test values for selection.'

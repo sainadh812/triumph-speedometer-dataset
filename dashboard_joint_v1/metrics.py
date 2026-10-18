@@ -50,20 +50,29 @@ class MetricAccumulator:
         self.names = list(point_names)
         self.errors = [[] for _ in self.names]
         self.visibility_prediction, self.visibility_target = [], []
+        self.visibility_unknown_count = 0
         self.presence_prediction, self.presence_target = [], []
         self.positive_mask_iou, self.absent_mask_fraction, self.box_ious = [], [], []
         self.count = 0
 
-    def add(self, points, targets, visible, visibility_probability, *, presence=None,
+    def add(self, points, targets, visible, visibility_probability, *, visibility_known=None, presence=None,
             present=None, masks=None, mask_targets=None, boxes=None, box_targets=None):
         points, targets, visible = np.asarray(points), np.asarray(targets), np.asarray(visible, bool)
         if points.shape != targets.shape or points.shape[:-1] != visible.shape:
             raise ValueError('Landmark metric shapes differ')
+        known = np.ones_like(visible, bool) if visibility_known is None else np.asarray(visibility_known)
+        probability = np.asarray(visibility_probability)
+        if known.shape != visible.shape or probability.shape != visible.shape or not np.isin(known, [0, 1]).all():
+            raise ValueError('Invalid visibility metric supervision')
+        known = known.astype(bool)
+        if np.any(visible & ~known):
+            raise ValueError('A visible landmark must have known visibility')
         error = np.linalg.norm(points - targets, axis=-1)
         for index in range(len(self.names)):
             self.errors[index].extend(error[:, index][visible[:, index]].tolist())
-        self.visibility_prediction.extend((np.asarray(visibility_probability) >= .5).tolist())
-        self.visibility_target.extend(visible.tolist())
+        self.visibility_prediction.extend((probability[known] >= .5).tolist())
+        self.visibility_target.extend(visible[known].tolist())
+        self.visibility_unknown_count += int(np.count_nonzero(~known))
         self.count += len(points)
         if presence is not None:
             truth = np.asarray(present, bool)
@@ -81,6 +90,8 @@ class MetricAccumulator:
                   'visible_point_error_px': _summary([x for group in self.errors for x in group]),
                   'per_landmark_error_px': {name: _summary(values) for name, values in zip(self.names, self.errors)},
                   'visibility_at_0_5': binary_scores(self.visibility_prediction, self.visibility_target),
+                  'visibility_known_point_count': len(self.visibility_target),
+                  'visibility_unknown_point_count_excluded': self.visibility_unknown_count,
                   'metric_scope': 'Input-pixel landmark error on visible labels; no speed or physical RPM accuracy claim.'}
         if self.presence_target:
             result.update(dashboard_presence_at_0_5=binary_scores(self.presence_prediction, self.presence_target),
