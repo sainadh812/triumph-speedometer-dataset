@@ -22,18 +22,22 @@ import uuid
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 try:
     from .dataset import TaskDataset, validate_dataset, sha256, PREPROCESSING_ID
     from .metrics import MetricAccumulator, heatmap_to_points
     from .model import InstrumentModel, require_colab_cuda, training_loss, ARCHITECTURE_ID
     from .state import CHECKPOINT_KIND, FORMAT_VERSION, identity_digest, validate_checkpoint, should_stop, RESUME_MODES
+    from .sampling import training_sampling_plan, batch_lighting_groups
+    from .initialization import load_initialization
 except ImportError:
     from dataset import TaskDataset, validate_dataset, sha256, PREPROCESSING_ID
     from metrics import MetricAccumulator, heatmap_to_points
     from model import InstrumentModel, require_colab_cuda, training_loss, ARCHITECTURE_ID
     from state import CHECKPOINT_KIND, FORMAT_VERSION, identity_digest, validate_checkpoint, should_stop, RESUME_MODES
+    from sampling import training_sampling_plan, batch_lighting_groups
+    from initialization import load_initialization
 
 
 @dataclass(frozen=True)
@@ -56,6 +60,7 @@ class TrainConfig:
     gradient_clip: float = 5.
     min_improvement: float = 1e-4
     progress_every_batches: int = 20
+    daylight_fraction: float | None = None
 
     def checked(self):
         for key in ('epochs', 'min_epochs', 'patience', 'batch_size', 'warmup_epochs',
@@ -64,6 +69,10 @@ class TrainConfig:
                 raise ValueError('Expected integer configuration: ' + key)
         if not isinstance(self.amp, bool):
             raise ValueError('amp must be a boolean')
+        if self.daylight_fraction is not None and (
+                isinstance(self.daylight_fraction, bool) or not isinstance(self.daylight_fraction, (int, float)) or
+                not math.isfinite(self.daylight_fraction) or not 0 < self.daylight_fraction < 1):
+            raise ValueError('daylight_fraction must be None or a finite number strictly between 0 and 1')
         if not (1 <= self.min_epochs <= self.epochs and self.patience >= 1 and self.batch_size >= 1):
             raise ValueError('Invalid epoch/patience/batch configuration')
         if self.num_workers < 0 or self.warmup_epochs < 0 or self.progress_every_batches < 1:
@@ -147,7 +156,34 @@ def _identity(validated, task):
             'input_hw': list(validated['tasks'][task]['input_hw']),
             'point_names': validated['tasks'][task]['point_names'],
             'code_sha256': {name: sha256(directory / name) for name in
-                            ('model.py', 'dataset.py', 'metrics.py', 'state.py', 'train.py')}}
+                            ('model.py', 'dataset.py', 'metrics.py', 'state.py', 'sampling.py', 'initialization.py', 'train.py')}}
+
+
+def _make_loaders(validated, task, config, generators):
+    datasets = {split: TaskDataset(validated, task, split) for split in generators}
+    weights, plan = training_sampling_plan(datasets['train'].rows, config.daylight_fraction)
+    sampler = (WeightedRandomSampler(weights, num_samples=len(datasets['train']), replacement=True,
+                                     generator=generators['train']) if weights is not None else None)
+    loaders = {split: DataLoader(dataset, batch_size=config.batch_size,
+                                shuffle=split == 'train' and sampler is None,
+                                sampler=sampler if split == 'train' else None,
+                                num_workers=config.num_workers, pin_memory=True,
+                                persistent_workers=False, generator=generators[split], drop_last=False)
+               for split, dataset in datasets.items()}
+    return loaders, plan
+
+
+def _initial_model(task, validated, identity, device, initialization_weights=None, resuming=False):
+    """Construct a task model without importing another experiment's training state."""
+    if resuming and initialization_weights is not None:
+        raise ValueError('Cannot combine weights-only initialization with full-state resume')
+    state, provenance = (load_initialization(initialization_weights, identity)
+                         if initialization_weights is not None else (None, None))
+    model = InstrumentModel(task, validated['tasks'][task]['input_hw'],
+                            pretrained=not resuming and state is None).to(device)
+    if state is not None:
+        model.load_state_dict(state, strict=True)
+    return model, provenance
 
 
 def _configure_train(model, epoch, config):
@@ -241,23 +277,40 @@ def _checked_training_step(model, optimizer, scaler, batch, config, context=None
             raise
 
 
-def _accumulate_evaluation_components(sums, weights, components, batch_size, visibility_count):
-    """Unknown visibility entries have no validation-loss denominator weight."""
+def _accumulate_evaluation_components(sums, weights, components, batch_size, visibility_count,
+                                      visible_point_count, present_count=0):
+    """Aggregate each loss using the denominator used by training_loss.
+
+    Point CE averages visible points; visibility BCE averages known labels;
+    box terms average present dashboards. Mask/presence terms average images
+    (mask dimensions are fixed within a task). Never average batch totals: their
+    component denominators can differ, especially for partially labeled frames.
+    """
+    denominators = {'heatmap': visible_point_count, 'visibility': visibility_count,
+                    'bbox_heatmap': present_count, 'bbox': present_count,
+                    'mask_bce': batch_size, 'mask_dice': batch_size, 'presence': batch_size}
     for key, raw in components.items():
-        value = float(raw)
-        weight = visibility_count if key == 'visibility' else batch_size
         if key == 'total':
-            # Average all other loss terms as before; add the globally known-
-            # label-weighted visibility term back after all batches finish.
-            value -= .25 * float(components['visibility'])
+            continue
+        if key not in denominators:
+            raise ValueError('Evaluation denominator is undefined for loss component: ' + key)
+        value, weight = float(raw), float(denominators[key])
         sums[key] = sums.get(key, 0.) + value * weight
         weights[key] = weights.get(key, 0.) + weight
 
 
 def _finalize_evaluation_losses(sums, weights):
     result = {key: value / weights[key] if weights[key] else 0. for key, value in sums.items()}
-    result['total'] += .25 * result['visibility']
+    coefficients = {'heatmap': 1., 'visibility': .25, 'mask_bce': 1., 'mask_dice': 1.,
+                    'bbox_heatmap': 1., 'bbox': 5., 'presence': .5}
+    result['total'] = sum(coefficients[key] * value for key, value in result.items())
     return result
+
+
+def _slice_batch(values, indices):
+    """Slice already computed tensors, without any additional model forward."""
+    return {key: value[indices] if torch.is_tensor(value) else [value[index] for index in indices]
+            for key, value in values.items()}
 
 
 @torch.no_grad()
@@ -265,6 +318,9 @@ def evaluate(model, loader, device, config, names):
     model.eval()
     metrics = MetricAccumulator(names)
     sums, weights, count = {}, {}, 0
+    groups = {light: {'metrics': MetricAccumulator(names), 'sums': {}, 'weights': {},
+                      'predicted_visible': np.zeros(len(names), dtype=np.int64)} for light in ('day', 'night')}
+    unknown_count = 0
     for raw in loader:
         batch = _to_device(raw, device)
         with torch.autocast('cuda', enabled=config.amp):
@@ -276,7 +332,9 @@ def evaluate(model, loader, device, config, names):
         count += size
         visibility_count = (float(raw['visibility_known'].sum()) if 'visibility_known' in raw
                             else raw['visible'].numel())
-        _accumulate_evaluation_components(sums, weights, components, size, visibility_count)
+        _accumulate_evaluation_components(sums, weights, components, size, visibility_count,
+                                         float(raw['visible'].sum()),
+                                         float(raw['present'].sum()) if 'present' in raw else 0.)
         points = heatmap_to_points(output['heatmap_logits'].float().cpu().numpy(), model.input_hw)
         kwargs = {'visibility_known': raw['visibility_known'].numpy()} if 'visibility_known' in raw else {}
         if model.task == 'localizer':
@@ -285,10 +343,48 @@ def evaluate(model, loader, device, config, names):
                       'masks': output['lcd_logits'].float().sigmoid().cpu().numpy() >= .5,
                       'mask_targets': raw['mask'].numpy() >= .5,
                       'boxes': output['dashboard_box'].float().cpu().numpy(), 'box_targets': raw['box'].numpy()})
-        metrics.add(points, raw['points'].numpy(), raw['visible'].numpy(),
-                    output['visibility_logits'].float().sigmoid().cpu().numpy(), **kwargs)
+        targets, visible = raw['points'].numpy(), raw['visible'].numpy()
+        probability = output['visibility_logits'].float().sigmoid().cpu().numpy()
+        metrics.add(points, targets, visible, probability, **kwargs)
+        for light, indices in batch_lighting_groups(raw.get('lighting'), size).items():
+            if light == 'unknown':
+                unknown_count += len(indices)
+                continue
+            group = groups[light]
+            group['metrics'].add(points[indices], targets[indices], visible[indices], probability[indices],
+                                 **{key: value[indices] for key, value in kwargs.items()})
+            group['predicted_visible'] += np.sum(probability[indices] >= .5, axis=0)
+            if len(indices) == size:
+                group_components = components
+            else:
+                # Only boundary batches need another loss calculation. Reuse
+                # the SAME predictions; no extra model/inference pass or RNG.
+                with torch.autocast('cuda', enabled=config.amp):
+                    group_loss, group_components = training_loss(_slice_batch(output, indices),
+                        _slice_batch(batch, indices), model.input_hw, config.heatmap_sigma)
+                if not torch.isfinite(group_loss):
+                    raise RuntimeError('Nonfinite lighting-group evaluation loss')
+            known_count = (float(raw['visibility_known'][indices].sum()) if 'visibility_known' in raw
+                           else raw['visible'][indices].numel())
+            _accumulate_evaluation_components(group['sums'], group['weights'], group_components, len(indices), known_count,
+                                             float(raw['visible'][indices].sum()),
+                                             float(raw['present'][indices].sum()) if 'present' in raw else 0.)
     result = metrics.result()
     result['loss'] = _finalize_evaluation_losses(sums, weights)
+    result['loss_denominators'] = weights
+    result['by_lighting'] = {}
+    for light, group in groups.items():
+        summary = group['metrics'].result()
+        summary['loss'] = (_finalize_evaluation_losses(group['sums'], group['weights'])
+                           if summary['samples'] else None)
+        summary['loss_denominators'] = group['weights']
+        summary['predicted_landmark_availability_at_0_5'] = {
+            name: {'count': int(value), 'fraction': float(value / summary['samples']) if summary['samples'] else None}
+            for name, value in zip(names, group['predicted_visible'])}
+        summary['availability_scope'] = 'Visibility-head diagnostics only; not accepted numeric speed/RPM readings or accuracy.'
+        result['by_lighting'][light] = summary
+    result['lighting_unknown_samples_excluded_from_groups'] = unknown_count
+    result['lighting_group_evaluation'] = 'Same unweighted sequential split and same forward outputs; no additional neural inference.'
     # Validation losses are comparable only within a task/identity, not across tasks.
     result['selection_score'] = result['loss']['total']
     result['selection_definition'] = 'Minimum combined validation loss; never use test values for selection.'
@@ -331,8 +427,10 @@ def _resume_path(directory, mode, provided):
 
 
 def train_task(task, dataset_root, output_root, config=None, resume='fresh', resume_checkpoint=None,
-               checkpoint_callback=None, progress_callback=None, validated=None):
+               checkpoint_callback=None, progress_callback=None, validated=None, initialization_weights=None):
     device = require_colab_cuda()
+    if initialization_weights is not None and (resume != 'fresh' or resume_checkpoint is not None):
+        raise ValueError('Weights-only initialization requires fresh mode in a new experiment; cannot combine with resume')
     config = (config or TrainConfig(batch_size={'localizer': 16, 'speed': 32, 'rpm': 64}[task])).checked()
     validated = validated or validate_dataset(dataset_root)
     if task not in validated['tasks']:
@@ -360,11 +458,9 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
             raise ValueError('Resuming an older/best epoch branches history; use a new output directory to preserve later epochs')
     _seed(config.seed)
     generators = {split: torch.Generator().manual_seed(config.seed + offset) for offset, split in enumerate(('train', 'val', 'test'))}
-    loaders = {split: DataLoader(TaskDataset(validated, task, split), batch_size=config.batch_size,
-                                 shuffle=split == 'train', num_workers=config.num_workers, pin_memory=True,
-                                 persistent_workers=False, generator=generators[split], drop_last=False)
-               for split in generators}
-    model = InstrumentModel(task, validated['tasks'][task]['input_hw'], pretrained=payload is None).to(device)
+    loaders, sampling_plan = _make_loaders(validated, task, config, generators)
+    model, transfer_provenance = _initial_model(task, validated, identity, device, initialization_weights,
+                                               resuming=payload is not None)
     encoder, heads = [], []
     for name, parameter in model.named_parameters():
         (encoder if name.startswith('features.') else heads).append(parameter)
@@ -376,6 +472,8 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
     history, best_state, best_epoch, best_score, waiting, start_epoch = [], None, 0, float('inf'), 0, 1
     initialization = {'mode': 'ImageNet encoder; newly initialized task heads', 'old_task_heads_loaded': False,
                       'weights_enum': 'MobileNet_V3_Small_Weights.IMAGENET1K_V1'}
+    if transfer_provenance is not None:
+        initialization = transfer_provenance
     training_complete = False
     if payload:
         model.load_state_dict(payload['model_state_dict'], strict=True)
@@ -391,12 +489,13 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
         _restore_rng(payload['rng_state'])
     emit({'event': 'task_start', 'task': task, 'input_hw': identity['input_hw'],
           'counts': validated['tasks'][task]['counts'], 'resume': resume, 'next_epoch': start_epoch,
-          'batch_size': config.batch_size, 'amp': config.amp}, progress_callback)
+          'batch_size': config.batch_size, 'amp': config.amp, 'training_sampling': sampling_plan}, progress_callback)
     last_checkpoint = resume_path
     for epoch in range(start_epoch, config.epochs + 1) if not training_complete else ():
         epoch_started = time.perf_counter()
         _configure_train(model, epoch, config)
         total, sample_count, components_sum = 0., 0, {}
+        sampled_lighting = {'day': 0, 'night': 0, 'unknown': 0}
         epoch_overflow_retries, epoch_retried_batches = 0, 0
         for step, raw in enumerate(loaders['train'], 1):
             batch = _to_device(raw, device)
@@ -405,6 +504,8 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
             epoch_overflow_retries += numerical['overflow_retries']
             epoch_retried_batches += int(numerical['overflow_retries'] > 0)
             size = len(raw['id'])
+            for light, indices in batch_lighting_groups(raw.get('lighting'), size).items():
+                sampled_lighting[light] += len(indices)
             sample_count += size
             total += float(loss.detach()) * size
             for key, value in components.items():
@@ -426,6 +527,7 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
                   'best_epoch': best_epoch, 'is_best': improved,
                   'amp_overflow_retries': epoch_overflow_retries, 'amp_retried_batches': epoch_retried_batches,
                   'amp_loss_scale_after_epoch': float(scaler.get_scale()),
+                  'training_sampled_lighting': sampled_lighting,
                   'next_learning_rates': [group['lr'] for group in optimizer.param_groups]}
         history.append(record)
         last_checkpoint = directory / f'epoch_{epoch:04d}.pt'
@@ -482,6 +584,7 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
               'last_checkpoint': str(last_checkpoint), 'best_model': str(weights_path), 'report': str(completed),
               'metric_scope': 'Development time-block split; no unseen-recording, speed-kmh, or physical-RPM accuracy claim.',
               'initialization': initialization, 'training_location': 'Google Colab CUDA',
+              'training_sampling': sampling_plan,
               'torch_version': torch.__version__, 'cuda_device': torch.cuda.get_device_name(device)}
     write_json(completed, result)
     if checkpoint_callback:
@@ -497,10 +600,13 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
 
 
 def train_all(dataset_root, output_root, configs=None, resume_modes=None, resume_checkpoints=None,
-              checkpoint_callback=None, progress_callback=None):
+              checkpoint_callback=None, progress_callback=None, initialization_weights=None):
     require_colab_cuda()
     validated = validate_dataset(dataset_root)
     configs, resume_modes, resume_checkpoints = configs or {}, resume_modes or {}, resume_checkpoints or {}
+    initialization_weights = initialization_weights or {}
+    if set(initialization_weights) - set(validated['tasks']):
+        raise ValueError('Unknown initialization task')
     results = {}
     for task in ('localizer', 'speed', 'rpm'):
         config = configs.get(task, TrainConfig(batch_size={'localizer': 16, 'speed': 32, 'rpm': 64}[task]))
@@ -508,19 +614,20 @@ def train_all(dataset_root, output_root, configs=None, resume_modes=None, resume
             config = TrainConfig(**config)
         results[task] = train_task(task, dataset_root, output_root, config,
                                    resume_modes.get(task, 'fresh'), resume_checkpoints.get(task),
-                                   checkpoint_callback, progress_callback, validated)
+                                   checkpoint_callback, progress_callback, validated,
+                                   initialization_weights=initialization_weights.get(task))
     write_json(Path(output_root) / 'training_complete.json', {'status': 'complete', 'tasks': results,
                                                             'dataset_manifest_sha256': validated['manifest_sha256']})
     return results
 
 
-def smoke_test(dataset_root, output_path=None, configs=None, progress_callback=None):
+def smoke_test(dataset_root, output_path=None, configs=None, progress_callback=None, initialization_weights=None):
     """One temporary train step and one validation batch per task, in Colab only.
 
     This exercises the full unfrozen encoder and AdamW allocation at requested
     batch sizes. It writes no epoch/task checkpoints, restores caller RNG states,
     and discards all temporary weights. The following fresh training initializes
-    again from cached ImageNet weights. These one-step timings include warmup;
+    again from cached ImageNet or verified transfer weights. These one-step timings include warmup;
     they are not sustained inference-FPS or model-accuracy measurements.
     """
     device = require_colab_cuda()
@@ -528,6 +635,9 @@ def smoke_test(dataset_root, output_path=None, configs=None, progress_callback=N
     cudnn_state = (torch.backends.cudnn.benchmark, torch.backends.cudnn.deterministic)
     validated = validate_dataset(dataset_root)
     configs = configs or {}
+    initialization_weights = initialization_weights or {}
+    if set(initialization_weights) - set(validated['tasks']):
+        raise ValueError('Unknown initialization task')
     report = {'status': 'running', 'dataset_manifest_sha256': validated['manifest_sha256'],
               'execution_location': 'Google Colab CUDA', 'device': torch.cuda.get_device_name(device),
               'task_results': {}, 'task_checkpoints_written': False,
@@ -546,9 +656,11 @@ def smoke_test(dataset_root, output_path=None, configs=None, progress_callback=N
             torch.cuda.reset_peak_memory_stats(device)
             train_loader = DataLoader(TaskDataset(validated, task, 'train'), batch_size=config.batch_size,
                                       shuffle=False, num_workers=0, pin_memory=True)
+            _, sampling_plan = training_sampling_plan(train_loader.dataset.rows, config.daylight_fraction)
             val_loader = DataLoader(TaskDataset(validated, task, 'val'), batch_size=config.batch_size,
                                     shuffle=False, num_workers=0, pin_memory=True)
-            model = InstrumentModel(task, validated['tasks'][task]['input_hw'], pretrained=True).to(device)
+            model, transfer_provenance = _initial_model(task, validated, _identity(validated, task), device,
+                                                       initialization_weights.get(task))
             optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
             scaler = torch.amp.GradScaler('cuda', enabled=config.amp, init_scale=config.amp_initial_scale, backoff_factor=.5)
             _configure_train(model, config.warmup_epochs + 1, config)
@@ -585,6 +697,8 @@ def smoke_test(dataset_root, output_path=None, configs=None, progress_callback=N
                       'training_loss': train_loss, 'validation_loss': float(val_loss),
                       'gradient_norm_before_clipping': float(gradient_norm),
                       'numerical_step': numerical,
+                      'training_sampling_preflight': sampling_plan,
+                      'initialization': transfer_provenance or {'mode': 'ImageNet encoder; newly initialized task heads'},
                       'peak_cuda_allocated_bytes': torch.cuda.max_memory_allocated(device),
                       'peak_cuda_reserved_bytes': torch.cuda.max_memory_reserved(device),
                       'parameter_count': sum(parameter.numel() for parameter in model.parameters()),

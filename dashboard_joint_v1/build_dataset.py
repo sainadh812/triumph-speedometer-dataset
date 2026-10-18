@@ -160,6 +160,9 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
     for name in ('annotations_day.json','annotations_night.json'):
         annotations+=read(source_root/name)['sources']
     if len({a['id'] for a in annotations})!=len(annotations): raise ValueError('Duplicate annotation IDs')
+    for row in annotations:
+        if row.get('annotation_status','reviewed')!='reviewed':
+            raise ValueError('Unreviewed annotation proposal cannot enter training: '+row['id'])
     samples={t:[] for t in SIZES}; skipped=[]; coverage=[]
     output.mkdir(parents=True)
     for task in SIZES:

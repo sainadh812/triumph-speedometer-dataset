@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 FILES = ['preprocess.py', 'dataset.py', 'model.py', 'metrics.py', 'state.py',
-         'train.py', 'colab_workflow.py', 'inference.py', 'video_test.py']
+         'sampling.py', 'initialization.py', 'train.py', 'colab_workflow.py', 'inference.py', 'video_test.py']
 
 
 def build(repository, commit, workspace_id, run_reference, video_config):

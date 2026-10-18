@@ -8,7 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 
-RUNTIME_FILES=['preprocess.py','dataset.py','model.py','metrics.py','state.py','train.py','colab_workflow.py']
+RUNTIME_FILES=['preprocess.py','dataset.py','model.py','metrics.py','state.py','sampling.py','initialization.py','train.py','colab_workflow.py']
 
 def file_hash(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 

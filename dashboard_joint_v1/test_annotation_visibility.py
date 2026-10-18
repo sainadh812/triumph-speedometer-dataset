@@ -1,12 +1,26 @@
 """Label-contract regressions, using geometry only (no model execution)."""
 import unittest
+import json
+import tempfile
+from pathlib import Path
 import numpy as np
 
-from build_dataset import annotation_targets, rpm_crop_geometry
+from build_dataset import annotation_targets, rpm_crop_geometry, make_dataset
 from preprocess import map_labels, rpm_matrix, rpm_roi_corners
 
 
 class AnnotationVisibilityTests(unittest.TestCase):
+    def test_unreviewed_registration_cannot_produce_training_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'source_inventory.json').write_text(json.dumps({'sources':[{'id':'proposal'}]}))
+            (root/'annotations_day.json').write_text(json.dumps({'sources':[
+                {'id':'proposal','annotation_status':'UNREVIEWED_REGISTRATION_PROPOSAL_NOT_FOR_TRAINING'}]}))
+            (root/'annotations_night.json').write_text(json.dumps({'sources':[]}))
+            with self.assertRaisesRegex(ValueError, 'Unreviewed annotation proposal'):
+                make_dataset(root,root/'output')
+            self.assertFalse((root/'output').exists())
+
     def setUp(self):
         self.row = {'lcd_corners': [[100, 100], [500, 100], [500, 300], [100, 300]],
                     'rpm_points': {}}

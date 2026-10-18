@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import time
 import uuid
@@ -43,7 +43,7 @@ def safe_extract(archive, destination):
         bundle.extractall(destination)
 
 
-def prepare(store, workspace_id, dataset_reference, workdir='/content/triumph_joint_v1'):
+def prepare(store, workspace_id, dataset_reference, workdir='/content/triumph_joint_v1', initialization_reference=None):
     """CPU data preparation. Extraction is bound to the exact verified archive."""
     ref = dataset_reference
     if not re.fullmatch('[0-9a-f]{64}', ref['sha256']):
@@ -67,9 +67,12 @@ def prepare(store, workspace_id, dataset_reference, workdir='/content/triumph_jo
                                  'dataset_manifest_sha256': expected_manifest, 'prepared': True}, root['id'],
                                 'dataset_' + ref['sha256'][:16] + '_prepared.json')
     print('Private dataset verified. Tasks:', ', '.join(TASKS), flush=True)
-    return {'dataset_root': str(dataset), 'workdir': str(workdir), 'drive_root_id': root['id'],
-            'dataset_reference': ref, 'dataset_manifest_sha256': expected_manifest,
-            'prepared_receipt_id': receipt['id']}
+    prepared = {'dataset_root': str(dataset), 'workdir': str(workdir), 'drive_root_id': root['id'],
+                'dataset_reference': ref, 'dataset_manifest_sha256': expected_manifest,
+                'prepared_receipt_id': receipt['id']}
+    if initialization_reference is not None:
+        prepared['initialization'] = prepare_initialization(store, prepared, initialization_reference)
+    return prepared
 
 
 def _file_digest(ref):
@@ -84,6 +87,146 @@ def _download(store, ref, path):
     path.parent.mkdir(parents=True, exist_ok=True)
     store.download_verified(ref['id'], path, _file_digest(ref), int(ref['size']))
     return path
+
+
+def _extract_initialization_models(archive, destination, complete, expected_identity=None):
+    """Inspect the entire ZIP but extract only the three selected weights/markers."""
+    destination = Path(destination).resolve()
+    selected = {f'{task}/{name}' for task in TASKS
+                for name in ('best_model.pt', 'best_model.pt.sha256.json', 'report.json')}
+    contents = {}
+    with zipfile.ZipFile(archive) as bundle:
+        entries, seen = bundle.infolist(), set()
+        if len(entries) > 10000:
+            raise ValueError('Initialization archive has too many entries')
+        for entry in entries:
+            name, relative = entry.filename, PurePosixPath(entry.filename)
+            if (name in seen or relative.is_absolute() or '..' in relative.parts or '\\' in name or
+                    ':' in name or ((entry.external_attr >> 16) & 0o170000) == 0o120000):
+                raise ValueError('Unsafe or duplicate initialization archive entry')
+            seen.add(name)
+            if name in selected and (entry.file_size <= 0 or entry.file_size >
+                                    (128 * 1024 ** 2 if name.endswith('.pt') else 8 * 1024 ** 2)):
+                raise ValueError('Unexpected initialization artifact size')
+        if not selected.issubset(seen):
+            raise ValueError('Initialization archive lacks a selected model, checksum, or report')
+        contents = {name: bundle.read(name) for name in selected}
+    provenance, common = {}, None
+    for task in TASKS:
+        report = json.loads(contents[task + '/report.json'])
+        marker = json.loads(contents[task + '/best_model.pt.sha256.json'])
+        data = contents[task + '/best_model.pt']
+        identity = report.get('identity', {})
+        summary = complete['results'][task]
+        if (report.get('status') != 'complete' or report.get('task') != task or identity.get('task') != task or
+                identity != summary.get('identity') or report.get('best_epoch') != summary.get('best_epoch')):
+            raise ValueError('Initialization report does not match the pinned COMPLETE receipt')
+        if (type(marker.get('bytes')) is not int or len(data) != marker['bytes'] or
+                hashlib.sha256(data).hexdigest() != marker.get('sha256')):
+            raise ValueError('Initialization model fails its checksum marker')
+        shared = {key: identity.get(key) for key in
+                  ('architecture_id', 'preprocessing_id', 'dataset_manifest_sha256', 'code_sha256')}
+        if common is not None and shared != common:
+            raise ValueError('Initialization models do not share a completed training identity')
+        common = shared
+        for key, value in (expected_identity or {}).items():
+            if identity.get(key) != value:
+                raise ValueError('Initialization source identity differs: ' + key)
+        provenance[task] = {'sha256': marker['sha256'], 'size': marker['bytes'],
+                            'best_epoch': report['best_epoch'], 'identity': identity}
+    paths = {}
+    # Verify every task first. No epoch/optimizer/history file is ever extracted.
+    for task in TASKS:
+        for name in ('best_model.pt', 'best_model.pt.sha256.json'):
+            target = destination / task / name
+            if not target.resolve().is_relative_to(destination):
+                raise ValueError('Initialization destination escapes its cache')
+            target.parent.mkdir(parents=True, exist_ok=True)
+            temporary = target.with_name(name + '.' + uuid.uuid4().hex + '.tmp')
+            temporary.write_bytes(contents[task + '/' + name])
+            temporary.replace(target)
+        paths[task] = str(destination / task / 'best_model.pt')
+    return paths, provenance
+
+
+def prepare_initialization(store, prepared, reference):
+    """CPU preflight for an explicitly pinned completed run; read-only Drive access.
+
+    reference={run_id, complete_id, expected_identity:{dataset_manifest_sha256:...}}
+    No new training folder/run is created and no neural weights are executed.
+    """
+    if (not isinstance(reference, dict) or not re.fullmatch('[A-Za-z0-9_-]{4,100}', reference.get('run_id', '')) or
+            not isinstance(reference.get('complete_id'), str) or not reference['complete_id']):
+        raise ValueError('Initialization requires an exact source run_id and COMPLETE receipt ID')
+    expected = reference.get('expected_identity', {})
+    if not isinstance(expected, dict):
+        raise ValueError('Initialization expected_identity must be a mapping')
+    runs = [item for item in store.list_files(prepared['drive_root_id'])
+            if item['name'] == reference['run_id'] and item.get('mimeType') == 'application/vnd.google-apps.folder']
+    if len(runs) != 1:
+        raise ValueError('Expected exactly one existing initialization run folder')
+    items = store.list_files(runs[0]['id'])
+    receipts = [item for item in items if item['id'] == reference['complete_id']]
+    if len(receipts) != 1:
+        raise ValueError('Pinned initialization COMPLETE receipt is not in its source run')
+    complete = store.read_json(receipts[0]['id'])
+    if (complete.get('status') != 'complete' or complete.get('run_id') != reference['run_id'] or
+            complete.get('drive_run_folder_id') != runs[0]['id'] or
+            receipts[0]['name'] != complete.get('attempt', '') + '_COMPLETE.json' or
+            set(complete.get('results', {})) != set(TASKS) or
+            any(complete['results'][task].get('status') != 'complete' for task in TASKS)):
+        raise ValueError('Initialization COMPLETE receipt is incomplete or inconsistent')
+    archive_ref = complete['archive']
+    if archive_ref['id'] not in {item['id'] for item in items}:
+        raise ValueError('Initialization archive is outside the completed run')
+    digest, size = _file_digest(archive_ref), int(archive_ref['size'])
+    if size <= 0 or size > 1024 ** 3:
+        raise ValueError('Invalid initialization archive size')
+    cache = Path(prepared['workdir']) / 'initialization' / digest
+    archive = cache / 'training_results.zip'
+    if not archive.is_file() or archive.stat().st_size != size or sha256(archive) != digest:
+        _download(store, archive_ref, archive)
+    if archive.stat().st_size != size or sha256(archive) != digest:
+        raise ValueError('Initialization archive download verification failed')
+    paths, provenance = _extract_initialization_models(archive, cache / 'selected', complete, expected)
+    result = {'reference': reference, 'source_attempt': complete['attempt'],
+              'source_archive': {'id': archive_ref['id'], 'sha256': digest, 'size': size},
+              'weights': paths, 'models': provenance}
+    write_json(cache / 'initialization_prepared.json', result)
+    print('Prior best weights verified for a NEW experiment; optimizer/history will not be resumed.', flush=True)
+    return result
+
+
+def _prepared_initialization_weights(prepared, reference, modes, run_id):
+    """Use prepared weights only for fresh tasks; resume checkpoints stand alone.
+
+    Cache restoration belongs to prepare() in the current runtime. A CPU-to-GPU
+    runtime replacement can erase /content, so an earlier CPU cache is not
+    assumed to survive. This function never downloads initialization artifacts.
+    """
+    from .initialization import verified_weight_file
+    fresh_tasks = [task for task in TASKS if modes[task] == 'fresh']
+    if not fresh_tasks:
+        # Full-state checkpoints already contain their initialization provenance.
+        # Do not depend on the original source archive/cache to resume a run.
+        return {}, None
+    value = prepared.get('initialization')
+    if reference is not None and (value is None or value.get('reference') != reference):
+        raise ValueError('Prepare this initialization reference in the current runtime before run_all; CPU preflight caches may be lost on a runtime switch')
+    if value is None:
+        return {}, None
+    if value['reference']['run_id'] == run_id:
+        raise ValueError('Weights-only transfer requires a NEW run ID')
+    if set(value.get('weights', {})) != set(TASKS) or set(value.get('models', {})) != set(TASKS):
+        raise ValueError('Prepared initialization must contain all three selected models')
+    paths = {}
+    for task in fresh_tasks:
+        actual = verified_weight_file(value['weights'][task])
+        expected = value['models'][task]
+        if actual != {'sha256': expected['sha256'], 'size': expected['size']}:
+            raise ValueError('Prepared initialization weights changed after CPU verification')
+        paths[task] = value['weights'][task]
+    return paths, value
 
 
 def _restore(store, task_folder, target, mode, task=None):
@@ -174,7 +317,7 @@ def _disconnect():
         return False
 
 
-def run_all(store, prepared, run_id, resume_modes=None, configs=None, auto_disconnect=True):
+def run_all(store, prepared, run_id, resume_modes=None, configs=None, auto_disconnect=True, initialization_reference=None):
     output = folder = None
     attempt = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S_%f')
     verified_local, remote_attempts = {}, {}
@@ -199,6 +342,7 @@ def run_all(store, prepared, run_id, resume_modes=None, configs=None, auto_disco
         modes = resume_modes or {task: 'fresh' for task in TASKS}
         if set(modes) != set(TASKS) or any(mode not in ('fresh', 'latest', 'best') for mode in modes.values()):
             raise ValueError('Specify fresh/latest/best for each task')
+        initialization_weights, initialization = _prepared_initialization_weights(prepared, initialization_reference, modes, run_id)
         folder = store.ensure_folder(run_id, prepared['drive_root_id'])
         folders = {task: store.ensure_folder(task, folder['id'])['id'] for task in TASKS}
         output = Path(prepared['workdir']) / 'runs' / run_id / attempt
@@ -211,6 +355,10 @@ def run_all(store, prepared, run_id, resume_modes=None, configs=None, auto_disco
                 if path.is_file():
                     remember(path)
         remote_attempts = {task: store.ensure_folder('attempt_' + attempt, folders[task])['id'] for task in TASKS}
+        initialization_arguments = {'initialization_weights': initialization_weights} if initialization_weights else {}
+        if initialization is not None:
+            write_json(output / 'initialization_provenance.json', initialization)
+            upload(output / 'initialization_provenance.json', folder['id'], attempt + '_initialization_provenance.json')
 
         def callback(task, path, metadata):
             epoch, phase = int(metadata['epoch']), metadata.get('phase', 'epoch')
@@ -242,11 +390,12 @@ def run_all(store, prepared, run_id, resume_modes=None, configs=None, auto_disco
         execution_started = True
         if len(complete_tasks) != len(TASKS):
             smoke = smoke_test(prepared['dataset_root'], output_path=output / 'gpu_smoke.json',
-                               configs=configs, progress_callback=progress)
+                               configs=configs, progress_callback=progress, **initialization_arguments)
             write_json(output / 'gpu_smoke.json', smoke)
             upload(output / 'gpu_smoke.json', folder['id'], attempt + '_gpu_smoke.json')
         result = train_all(prepared['dataset_root'], output, configs=configs, resume_modes=modes,
-                           resume_checkpoints=resume_paths, checkpoint_callback=callback, progress_callback=progress)
+                           resume_checkpoints=resume_paths, checkpoint_callback=callback, progress_callback=progress,
+                           **initialization_arguments)
         archive = output / 'training_results.zip'
         with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as bundle:
             for path in sorted(output.rglob('*')):
@@ -260,6 +409,8 @@ def run_all(store, prepared, run_id, resume_modes=None, configs=None, auto_disco
                    'elapsed_seconds': time.perf_counter() - started, 'results': result,
                    'archive': saved, 'drive_run_folder_id': folder['id'], 'task_attempt_folder_ids': remote_attempts,
                    'all_epoch_checkpoints_preserved': True, 'no_old_model_comparison': True}
+        if initialization is not None:
+            summary['initialization'] = initialization
         write_json(output / 'COMPLETE.json', summary)
         store.upload_json(summary, folder['id'], attempt + '_COMPLETE.json')
         remember(output / 'COMPLETE.json')

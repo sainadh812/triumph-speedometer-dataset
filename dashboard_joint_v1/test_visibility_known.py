@@ -157,16 +157,16 @@ class VisibilityLossTests(unittest.TestCase):
         functions = isolated_functions()
         accumulate, finalize = functions['_accumulate_evaluation_components'], functions['_finalize_evaluation_losses']
         sums, weights = {}, {}
-        accumulate(sums, weights, {'heatmap': 1., 'visibility': 2., 'total': 1.5}, 1, 2)
-        accumulate(sums, weights, {'heatmap': 1., 'visibility': 0., 'total': 1.}, 1, 0)
+        accumulate(sums, weights, {'heatmap': 1., 'visibility': 2., 'total': 1.5}, 1, 2, 1)
+        accumulate(sums, weights, {'heatmap': 0., 'visibility': 0., 'total': 0.}, 1, 0, 0)
         result = finalize(sums, weights)
         self.assertEqual(result, {'heatmap': 1., 'visibility': 2., 'total': 1.5})
 
     def test_validation_matches_old_sample_average_when_all_known(self):
         functions = isolated_functions()
         sums, weights = {}, {}
-        functions['_accumulate_evaluation_components'](sums, weights, {'heatmap': 1., 'visibility': 2., 'total': 1.5}, 2, 8)
-        functions['_accumulate_evaluation_components'](sums, weights, {'heatmap': 2., 'visibility': 4., 'total': 3.}, 1, 4)
+        functions['_accumulate_evaluation_components'](sums, weights, {'heatmap': 1., 'visibility': 2., 'total': 1.5}, 2, 8, 4)
+        functions['_accumulate_evaluation_components'](sums, weights, {'heatmap': 2., 'visibility': 4., 'total': 3.}, 1, 4, 2)
         result = functions['_finalize_evaluation_losses'](sums, weights)
         self.assertAlmostEqual(result['total'], (2 * 1.5 + 3.) / 3)
         self.assertAlmostEqual(result['visibility'], (2 * 2. + 4.) / 3)

@@ -191,7 +191,8 @@ class TaskDataset:
         known = validate_visibility_known(row, len(POINT_NAMES[self.task]), visible)
         result = {'image': normalize_gray(image), 'points': points, 'visible': visible.astype(np.float32),
                   'visibility_known': known.astype(np.float32),
-                  'id': row['id'], 'source_id': row['source_id']}
+                  'id': row['id'], 'source_id': row['source_id'],
+                  'lighting': row.get('lighting') if row.get('lighting') in ('day', 'night') else 'unknown'}
         if self.task == 'localizer':
             mask = cv2.imread(str(self.root / row['lcd_mask']), cv2.IMREAD_GRAYSCALE)
             h, w = self.input_hw
