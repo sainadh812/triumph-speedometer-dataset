@@ -10,6 +10,8 @@ The existing MobileNetV3-small 12-landmark network is retained: pivot, needle ti
 
 At inference the full sensor frame is padded and resized, preserving its orientation. Matching against two static references locates the LCD mask only. It does not warp the image into a fixed camera pose. Ambiguous or unsafe masks produce a documented rejection. Speed uses predicted tick geometry and the predicted needle, never source annotations or the image's known rendering transform.
 
+A reliably registered LCD may extend beyond the camera frame. Its mask is intersected with the visible sensor area; off-screen LCD vertices do not by themselves reject a reading. The visible-area minimum, analog needle/tick protection, and reference-agreement checks still apply. Evaluation metadata records the clipping policy and inference-code hash. Before/after comparisons must use the same inference version.
+
 ## Colab workflow
 
 Open `Triumph_Mixed_Views_V5_Colab.ipynb`, select T4 GPU, and connect your Drive. The notebook downloads pinned code and hash-verified dataset parts. Every completed epoch saves the full optimizer, model, AMP scaler, sampler and random state to Drive. The modes are `transfer_v4`, `resume_latest`, `resume_best`, and `fresh`; resume never silently starts over. Both an equal-group best checkpoint and a worst-source-view best checkpoint are retained.
