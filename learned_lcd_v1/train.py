@@ -48,10 +48,51 @@ class TrainConfig:
     num_workers:int=0
     seed:int=42
     progress_every_batches:int=50
+    max_consecutive_amp_skips:int=8
 
 
 def digest(value):
     return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
+
+
+def optimizer_attempt(model,optimizer,scaler,grad_clip):
+    """Discard nonfinite AMP gradients and back off without an optimizer update."""
+    scaler.unscale_(optimizer)
+    norm=torch.nn.utils.clip_grad_norm_(model.parameters(),grad_clip,error_if_nonfinite=False)
+    if not bool(torch.isfinite(norm)):
+        optimizer.zero_grad(set_to_none=True)
+        if not scaler.is_enabled():
+            raise ValueError('Nonfinite LCD gradients without AMP; earlier Drive checkpoints remain valid')
+        reduced_scale=float(scaler.get_scale())*float(scaler.get_backoff_factor())
+        if not math.isfinite(reduced_scale) or reduced_scale<=0:
+            raise ValueError('AMP scale cannot back off safely; earlier Drive checkpoints remain valid')
+        # Explicit update also handles a norm overflow with individually finite gradients.
+        # No scaler.step/optimizer.step is called for this discarded batch.
+        scaler.update(new_scale=reduced_scale)
+        # update(new_scale=...) clears per-optimizer state but preserves the growth
+        # counter. Reset via the public serialization API, as an overflow would.
+        state=scaler.state_dict();state['_growth_tracker']=0
+        scaler.load_state_dict(state)
+        return False
+    scaler.step(optimizer);scaler.update()
+    return True
+
+
+def record_optimizer_attempt(progress,updated,batch_size,skip_limit):
+    if updated:
+        progress['optimizer_updates']+=1
+        progress['optimized_training_images']+=int(batch_size)
+        progress['consecutive_amp_skips']=0
+    else:
+        progress['amp_skipped_batches']+=1
+        progress['consecutive_amp_skips']+=1
+        progress['max_consecutive_amp_skips_seen']=max(progress['max_consecutive_amp_skips_seen'],progress['consecutive_amp_skips'])
+        if progress['consecutive_amp_skips']>=skip_limit:
+            raise ValueError(f'{skip_limit} consecutive nonfinite AMP batches; epoch not completed; earlier Drive checkpoints remain valid')
+
+
+def require_epoch_updates(updates):
+    if updates<=0:raise ValueError('LCD epoch has zero optimizer updates; epoch not completed and no checkpoint published')
 
 
 def _file(root,relative):
@@ -193,7 +234,7 @@ def train(config,mode='imagenet',checkpoint=None,*,stop_after_epochs=None):
     device=require_colab_cuda(config.device)
     cv2.setNumThreads(1)
     if mode not in ('imagenet','fresh','resume_best','resume_latest','resume_explicit'):raise ValueError('Invalid mode')
-    if min(config.epochs,config.batch_size,config.patience,config.progress_every_batches)<1 or config.num_workers!=0 or config.warmup_epochs<0:
+    if min(config.epochs,config.batch_size,config.patience,config.progress_every_batches,config.max_consecutive_amp_skips)<1 or config.num_workers!=0 or config.warmup_epochs<0:
         raise ValueError('Invalid training counts; exact resume requires num_workers=0')
     if any(not math.isfinite(v) or v<=0 for v in (config.decoder_lr,config.encoder_lr,config.grad_clip)) or config.analog_weight<0:
         raise ValueError('Invalid optimization settings')
@@ -216,11 +257,13 @@ def train(config,mode='imagenet',checkpoint=None,*,stop_after_epochs=None):
     val_loader=DataLoader(LCDDataset(config.data_dir,rows['val']),batch_size=config.batch_size,shuffle=False,
         generator=generators['val'],num_workers=0,pin_memory=True)
     epoch=0;history=[];best_epoch=0;best_score=float('inf');bad_epochs=0;best_reference=None;latest=None
+    optimization_progress={key:0 for key in ('optimizer_updates','optimized_training_images','amp_skipped_batches','consecutive_amp_skips','max_consecutive_amp_skips_seen')}
     if source:
         model.load_state_dict(source['model_state_dict'],strict=True);optimizer.load_state_dict(source['optimizer_state_dict'])
         scaler.load_state_dict(source['scaler_state_dict']);sampler.load_state_dict(source['sampler_state'])
         epoch=source['epoch'];history=deepcopy(source['history']);best_epoch=source['best_epoch'];best_score=source['best_score'];bad_epochs=source['bad_epochs']
         initialization=source['initialization']
+        optimization_progress=deepcopy(source['optimization_progress'])
         for name,generator in generators.items():generator.set_state(source['loader_generator_states'][name])
         cp.restore_rng(source['rng_state'])
         best_reference=({'path':selected['path'],'sha256':selected['sha256'],'epoch':best_epoch} if best_epoch==epoch else source['best_checkpoint'])
@@ -239,7 +282,8 @@ def train(config,mode='imagenet',checkpoint=None,*,stop_after_epochs=None):
             'scaler_state_dict':scaler.state_dict(),'scheduler_state_dict':None,'rng_state':cp.rng_state(),
             'loader_generator_states':{name:g.get_state() for name,g in generators.items()},'sampler_state':sampler.state_dict(),
             'epoch':epoch,'history':deepcopy(history),'best_epoch':best_epoch,'best_score':best_score,'bad_epochs':bad_epochs,
-            'best_checkpoint':None if best_epoch==epoch else best_reference,'initialization':initialization}
+            'best_checkpoint':None if best_epoch==epoch else best_reference,'initialization':initialization,
+            'optimization_progress':deepcopy(optimization_progress)}
         marker=cp.save(payload,path);latest=str(path)
         if best_epoch==epoch:best_reference={'path':str(path),'sha256':marker['sha256'],'epoch':epoch}
         cp.atomic_json(run/'latest_checkpoint.json',marker);cp.atomic_json(run/'best_checkpoint.json',best_reference)
@@ -256,6 +300,7 @@ def train(config,mode='imagenet',checkpoint=None,*,stop_after_epochs=None):
         sampler.set_epoch(epoch_next)
         stage=configure_stage(model,epoch_next,config.warmup_epochs,fresh=initialization['mode']=='fresh')
         total=0.;count=0;start=time.monotonic()
+        progress_start=deepcopy(optimization_progress)
         for batch_index,batch in enumerate(train_loader,1):
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type='cuda',enabled=config.amp):
@@ -263,14 +308,23 @@ def train(config,mode='imagenet',checkpoint=None,*,stop_after_epochs=None):
                 loss,_=segmentation_loss(logits,batch['lcd'].to(device),batch['valid'].to(device),
                     batch['protected'].to(device),batch['protected_available'].to(device),analog_weight=config.analog_weight)
             if not torch.isfinite(loss):raise ValueError('Nonfinite LCD loss; earlier Drive checkpoints remain valid')
-            scaler.scale(loss).backward();scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(),config.grad_clip,error_if_nonfinite=True)
-            scaler.step(optimizer);scaler.update()
+            scaler.scale(loss).backward()
+            updated=optimizer_attempt(model,optimizer,scaler,config.grad_clip)
+            if not updated:
+                print(f'LCD AMP skipped epoch {epoch_next} batch {batch_index}; scale backed off to {scaler.get_scale():g}; consecutive={optimization_progress["consecutive_amp_skips"]+1}/{config.max_consecutive_amp_skips}',flush=True)
+            record_optimizer_attempt(optimization_progress,updated,len(batch['index']),config.max_consecutive_amp_skips)
             total+=float(loss.detach())*len(batch['index']);count+=len(batch['index'])
             if batch_index==1 or batch_index%config.progress_every_batches==0:
                 print(f'LCD epoch {epoch_next}/{config.epochs} batch {batch_index}/{len(train_loader)} loss={total/count:.5f} elapsed={time.monotonic()-start:.0f}s',flush=True)
+        epoch_updates=optimization_progress['optimizer_updates']-progress_start['optimizer_updates']
+        require_epoch_updates(epoch_updates)
         metrics,_=evaluate_model(model,val_loader,device,analog_weight=config.analog_weight,progress_every=config.progress_every_batches)
-        epoch=epoch_next;history.append({'epoch':epoch,'stage':stage,'train_loss':total/count,'training_images':count,'validation':metrics})
+        epoch=epoch_next;history.append({'epoch':epoch,'stage':stage,'train_loss':total/count,'training_images':count,
+            'optimizer_updates':epoch_updates,'amp_skipped_batches':optimization_progress['amp_skipped_batches']-progress_start['amp_skipped_batches'],
+            'optimized_training_images':optimization_progress['optimized_training_images']-progress_start['optimized_training_images'],
+            'consecutive_amp_skips_at_end':optimization_progress['consecutive_amp_skips'],
+            'max_consecutive_amp_skips_seen':optimization_progress['max_consecutive_amp_skips_seen'],
+            'amp_scale_end':scaler.get_scale(),'validation':metrics})
         score=metrics['selection_score'];meaningful=score<best_score-config.min_delta
         if score<best_score:best_epoch=epoch;best_score=score
         bad_epochs=0 if meaningful else bad_epochs+1
@@ -310,6 +364,7 @@ def train(config,mode='imagenet',checkpoint=None,*,stop_after_epochs=None):
         'latest_checkpoint_path':latest,'best_checkpoint_path':best_reference['path'],'ready_for_integration':ready,
         'gate_config':gate,'gate_selection':selection,'validation_metrics':validation_metrics,'test_metrics':test_metrics,
         'test_evaluation_status':test_status,'test_ledger':str(ledger),'identity':identity,'initialization':initialization,
+        'optimization_progress':deepcopy(optimization_progress),
         'resume':{'mode':mode,'source_checkpoint':selected['path'] if selected else None,'full_state_restored':source is not None,'recovery_diagnostics':recovery},
         'metric_scope':'LCD mask agreement only. Model scores are not calibrated confidence; analog protection is unmeasured when annotations are absent.'}
     cp.atomic_json(run/'training_report.json',report)

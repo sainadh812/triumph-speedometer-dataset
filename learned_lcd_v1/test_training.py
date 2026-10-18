@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch,Mock
 
 import cv2
 import numpy as np
@@ -129,6 +129,49 @@ class LossAndStageTests(unittest.TestCase):
             verify.assert_not_called()
 
 
+class AmpStepTests(unittest.TestCase):
+    def fixtures(self,enabled=True):
+        model=Mock();model.parameters.return_value=[]
+        optimizer=Mock();scaler=Mock()
+        scaler.is_enabled.return_value=enabled;scaler.get_scale.return_value=65536.
+        scaler.get_backoff_factor.return_value=.5
+        scaler.state_dict.return_value={'scale':32768.,'growth_factor':2.,'backoff_factor':.5,'growth_interval':2000,'_growth_tracker':1999}
+        return model,optimizer,scaler
+
+    def test_nonfinite_amp_gradient_skips_and_backs_off_without_optimizer_step(self):
+        model,optimizer,scaler=self.fixtures()
+        with patch.object(torch.nn.utils,'clip_grad_norm_',return_value=torch.tensor(float('inf'))):
+            self.assertFalse(trainer.optimizer_attempt(model,optimizer,scaler,5.))
+        scaler.unscale_.assert_called_once_with(optimizer)
+        scaler.step.assert_not_called();optimizer.step.assert_not_called()
+        optimizer.zero_grad.assert_called_once_with(set_to_none=True)
+        scaler.update.assert_called_once_with(new_scale=32768.)
+        scaler.load_state_dict.assert_called_once_with({'scale':32768.,'growth_factor':2.,'backoff_factor':.5,'growth_interval':2000,'_growth_tracker':0})
+
+    def test_non_amp_failure_and_finite_amp_update_paths(self):
+        model,optimizer,scaler=self.fixtures(enabled=False)
+        with patch.object(torch.nn.utils,'clip_grad_norm_',return_value=torch.tensor(float('nan'))):
+            with self.assertRaisesRegex(ValueError,'without AMP'):trainer.optimizer_attempt(model,optimizer,scaler,5.)
+        scaler.step.assert_not_called();scaler.update.assert_not_called();optimizer.step.assert_not_called()
+        model,optimizer,scaler=self.fixtures()
+        with patch.object(torch.nn.utils,'clip_grad_norm_',return_value=torch.tensor(2.)):
+            self.assertTrue(trainer.optimizer_attempt(model,optimizer,scaler,5.))
+        scaler.step.assert_called_once_with(optimizer);scaler.update.assert_called_once_with()
+        optimizer.step.assert_not_called() # mock scaler never executes any optimizer
+
+    def test_bounded_skips_reset_on_success_and_zero_update_epoch_fails(self):
+        progress={key:0 for key in ('optimizer_updates','optimized_training_images','amp_skipped_batches','consecutive_amp_skips','max_consecutive_amp_skips_seen')}
+        for _ in range(7):trainer.record_optimizer_attempt(progress,False,12,8)
+        trainer.record_optimizer_attempt(progress,True,12,8)
+        self.assertEqual(progress['consecutive_amp_skips'],0)
+        self.assertEqual(progress['optimized_training_images'],12)
+        for _ in range(7):trainer.record_optimizer_attempt(progress,False,12,8)
+        with self.assertRaisesRegex(ValueError,'8 consecutive'):trainer.record_optimizer_attempt(progress,False,12,8)
+        self.assertEqual(progress['amp_skipped_batches'],15)
+        with self.assertRaisesRegex(ValueError,'zero optimizer'):trainer.require_epoch_updates(0)
+        trainer.require_epoch_updates(1)
+
+
 def checkpoint_payload(epoch):
     scores=[3.,.2,.4][:epoch+1];best=min(range(len(scores)),key=lambda i:scores[i])
     rng=torch.Generator().manual_seed(6).get_state()
@@ -137,7 +180,10 @@ def checkpoint_payload(epoch):
         'optimizer_state_dict':{'state':{0:{'step':torch.tensor(float(epoch))}} if epoch else {},'param_groups':[]},
         'scaler_state_dict':{},'scheduler_state_dict':None,'rng_state':cp.rng_state(),
         'sampler_state':{'epoch':epoch},'loader_generator_states':{'train':rng,'val':rng},'epoch':epoch,
-        'history':[{'epoch':i,'validation':{'selection_score':value}} for i,value in enumerate(scores)],
+        'history':[{'epoch':i,'optimizer_updates':int(i>0),'optimized_training_images':12*int(i>0),'amp_skipped_batches':0,
+                    'validation':{'selection_score':value}} for i,value in enumerate(scores)],
+        'optimization_progress':{'optimizer_updates':epoch,'optimized_training_images':12*epoch,'amp_skipped_batches':0,
+                                 'consecutive_amp_skips':0,'max_consecutive_amp_skips_seen':0},
         'best_epoch':best,'best_score':scores[best],
         'best_checkpoint':{'path':'previous_best.pt','sha256':'0'*64,'epoch':best} if best<epoch else None,
         'bad_epochs':0,'config':{},'initialization':{'mode':'fresh'}}
@@ -164,11 +210,15 @@ class ResumeTests(unittest.TestCase):
 
     def test_full_state_history_and_sampler_required(self):
         good=checkpoint_payload(2);cp.validate(good)
-        for field in ('rng_state','scaler_state_dict','sampler_state','optimizer_state_dict'):
+        for field in ('rng_state','scaler_state_dict','sampler_state','optimizer_state_dict','optimization_progress'):
             broken=deepcopy(good);del broken[field]
             with self.subTest(field=field),self.assertRaises(ValueError):cp.validate(broken)
         broken=deepcopy(good);broken['best_epoch']=2
         with self.assertRaises(ValueError):cp.validate(broken)
+        broken=deepcopy(good);broken['optimization_progress']['amp_skipped_batches']=1
+        with self.assertRaisesRegex(ValueError,'differs from epoch history'):cp.validate(broken)
+        broken=deepcopy(good);broken['history'][1]['optimizer_updates']=0
+        with self.assertRaisesRegex(ValueError,'zero optimizer updates'):cp.validate(broken)
 
     def test_sampler_resume_same_order_and_incompatible_rows_rejected(self):
         rows=[{'id':str(i)} for i in range(20)]

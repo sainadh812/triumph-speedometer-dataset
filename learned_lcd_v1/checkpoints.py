@@ -23,12 +23,22 @@ seed=durable._seed
 def validate(payload):
     required={'checkpoint_kind','format_version','identity','model_state_dict','optimizer_state_dict',
         'scaler_state_dict','scheduler_state_dict','rng_state','sampler_state','loader_generator_states',
-        'epoch','history','best_epoch','best_score','best_checkpoint','bad_epochs','config','initialization'}
+        'epoch','history','best_epoch','best_score','best_checkpoint','bad_epochs','config','initialization','optimization_progress'}
     if not isinstance(payload,dict) or not required.issubset(payload): raise ValueError('Incomplete LCD checkpoint')
     if payload['checkpoint_kind']!=KIND or payload['format_version']!=FORMAT_VERSION: raise ValueError('Wrong checkpoint family')
     epoch=payload['epoch']; history=payload['history']
     if type(epoch) is not int or epoch<0 or [r['epoch'] for r in history]!=list(range(epoch+1)):
         raise ValueError('Incomplete LCD epoch history')
+    progress=payload['optimization_progress']
+    keys={'optimizer_updates','optimized_training_images','amp_skipped_batches','consecutive_amp_skips','max_consecutive_amp_skips_seen'}
+    if not isinstance(progress,dict) or set(progress)!=keys or any(type(v) is not int or v<0 for v in progress.values()):
+        raise ValueError('Invalid optimizer/AMP progress')
+    if any(row.get('optimizer_updates',0)<=0 for row in history[1:]):
+        raise ValueError('Completed epoch has zero optimizer updates')
+    for key in ('optimizer_updates','optimized_training_images','amp_skipped_batches'):
+        if progress[key]!=sum(row.get(key,0) for row in history):raise ValueError('Optimizer/AMP progress differs from epoch history')
+    if progress['consecutive_amp_skips']>progress['max_consecutive_amp_skips_seen']:
+        raise ValueError('Invalid consecutive AMP skip count')
     scores=[r['validation']['selection_score'] for r in history]
     if any(not math.isfinite(s) for s in scores): raise ValueError('Nonfinite selection score')
     best=min(range(len(scores)),key=lambda i:scores[i])
