@@ -118,4 +118,4 @@ if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--repo',required=True);p.add_argument('--commit',required=True)
     p.add_argument('--config');p.add_argument('--output',required=True);a=p.parse_args()
     config=json.loads(Path(a.config).read_text()) if a.config else None
-    Path(a.output).write_text(json.dumps(build(a.repo,a.commit,config),indent=2),encoding='utf8')
+    Path(a.output).write_text(json.dumps(build(a.repo,a.commit,config),indent=2),encoding='utf8',newline='\n')
