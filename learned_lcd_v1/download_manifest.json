@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "archive_name": "learned_lcd_v1_dataset.zip",
+  "archive_sha256": "6ad69ab551ae00229be353c1b365d3d046723b9f7212e7292d382118cc461717",
+  "archive_bytes": 266356338,
+  "dataset_manifest_sha256": "b5bca7882b2f21671860203e7b16ff44ba0728cc0eaaa8f732bd534e20502835",
+  "counts": {
+    "test": 212,
+    "train": 3600,
+    "val": 614
+  },
+  "parts": [
+    {
+      "name": "learned_lcd_v1_dataset.zip.part00",
+      "bytes": 47185920,
+      "sha256": "f3f5864b0607ca442096cebc286454319b20122f6ea230b1207b56085d64a1b3"
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part01",
+      "bytes": 47185920,
+      "sha256": "8eee582545c6779cf83366b29db997ec21b81d866f30c65d5a06796546611212"
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part02",
+      "bytes": 47185920,
+      "sha256": "5c04e7596809d24a434e6c9e4997edfe848b40a2884b3852c7b17b085507451d"
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part03",
+      "bytes": 47185920,
+      "sha256": "da2e0d5c76a358d83c13254c6d357450865553d7183f5c83c1b1a9654d6cbe2f"
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part04",
+      "bytes": 47185920,
+      "sha256": "f43eaa73d1eeda5027a73e2412d43cf22886758b350c9cab1aa105092a86f67c"
+    },
+    {
+      "name": "learned_lcd_v1_dataset.zip.part05",
+      "bytes": 30426738,
+      "sha256": "5938aa8fd04b0016cef372dccacd21cc820905d6bd87d8242928bec24a2ae3ad"
+    }
+  ]
+}

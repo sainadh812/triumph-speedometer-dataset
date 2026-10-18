@@ -1,0 +1,58 @@
+{
+  "train": {
+    "augmented_samples": 3568,
+    "rotation_bin_counts": {
+      "0": 295,
+      "1": 295,
+      "2": 297,
+      "3": 299,
+      "4": 300,
+      "5": 299,
+      "6": 299,
+      "7": 299,
+      "8": 298,
+      "9": 297,
+      "10": 296,
+      "11": 294
+    },
+    "minimum_bins_per_source": 12
+  },
+  "val": {
+    "augmented_samples": 600,
+    "rotation_bin_counts": {
+      "0": 47,
+      "1": 49,
+      "2": 51,
+      "3": 53,
+      "4": 54,
+      "5": 54,
+      "6": 53,
+      "7": 51,
+      "8": 48,
+      "9": 48,
+      "10": 47,
+      "11": 45
+    },
+    "minimum_bins_per_source": 12
+  },
+  "test": {
+    "augmented_samples": 200,
+    "rotation_bin_counts": {
+      "0": 16,
+      "1": 16,
+      "2": 16,
+      "3": 16,
+      "4": 17,
+      "5": 17,
+      "6": 17,
+      "7": 17,
+      "8": 17,
+      "9": 17,
+      "10": 17,
+      "11": 17
+    },
+    "minimum_bins_per_source": 12
+  },
+  "all_source_families_span_full_circle": true,
+  "static_data_check_only": true
+}

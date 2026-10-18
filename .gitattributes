@@ -2,3 +2,4 @@
 ring_training_v2/render_source/** -text whitespace=cr-at-eol,-blank-at-eof
 rpm_training_v1/** -text whitespace=cr-at-eol,-blank-at-eof
 mixed_view_v5/** -text whitespace=cr-at-eol,-blank-at-eof
+learned_lcd_v1/** -text whitespace=cr-at-eol,-blank-at-eof
