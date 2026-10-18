@@ -1,0 +1,22 @@
+{
+  "scope": "STATIC synthetic label-only geometry checks, not model/video inference or measured accuracy",
+  "canonical_calibration_source": "tilted_v4",
+  "canonical_calibration_sha256": "2581a049a418d0f337a9997dcd6d196aef7d49d4d9194acc2bc176f14441d2f5",
+  "accepted": 7500,
+  "rejected": 0,
+  "by_source_view": {
+    "straight_v3": {
+      "count": 1500,
+      "mean_abs_kmh": 0.2332989512452269,
+      "max_abs_kmh": 0.5335506124535954,
+      "p95_abs_kmh": 0.46271358495338666
+    },
+    "tilted_v4": {
+      "count": 6000,
+      "mean_abs_kmh": 2.245452739381151e-06,
+      "max_abs_kmh": 1.4093918991875398e-05,
+      "p95_abs_kmh": 5.692876936791437e-06
+    }
+  },
+  "interpretation": "Small cross-calibration differences are retained and disclosed; original requested speed labels are unchanged."
+}

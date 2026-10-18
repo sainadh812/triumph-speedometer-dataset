@@ -1,0 +1,158 @@
+{
+  "status": "built_and_static_checks_passed",
+  "count": 7500,
+  "split_counts": {
+    "train": 6000,
+    "validation": 1500
+  },
+  "original_parent_count": 2500,
+  "new_descendants_per_parent": 3,
+  "strata_counts": [
+    {
+      "split": "train",
+      "source_view": "straight_v3",
+      "roll_bucket": "left",
+      "count": 400
+    },
+    {
+      "split": "train",
+      "source_view": "straight_v3",
+      "roll_bucket": "right",
+      "count": 400
+    },
+    {
+      "split": "train",
+      "source_view": "straight_v3",
+      "roll_bucket": "straight",
+      "count": 400
+    },
+    {
+      "split": "train",
+      "source_view": "tilted_v4",
+      "roll_bucket": "left",
+      "count": 1600
+    },
+    {
+      "split": "train",
+      "source_view": "tilted_v4",
+      "roll_bucket": "right",
+      "count": 1600
+    },
+    {
+      "split": "train",
+      "source_view": "tilted_v4",
+      "roll_bucket": "straight",
+      "count": 1600
+    },
+    {
+      "split": "validation",
+      "source_view": "straight_v3",
+      "roll_bucket": "left",
+      "count": 100
+    },
+    {
+      "split": "validation",
+      "source_view": "straight_v3",
+      "roll_bucket": "right",
+      "count": 100
+    },
+    {
+      "split": "validation",
+      "source_view": "straight_v3",
+      "roll_bucket": "straight",
+      "count": 100
+    },
+    {
+      "split": "validation",
+      "source_view": "tilted_v4",
+      "roll_bucket": "left",
+      "count": 400
+    },
+    {
+      "split": "validation",
+      "source_view": "tilted_v4",
+      "roll_bucket": "right",
+      "count": 400
+    },
+    {
+      "split": "validation",
+      "source_view": "tilted_v4",
+      "roll_bucket": "straight",
+      "count": 400
+    }
+  ],
+  "sampler_requirement": "Equal training probability for each of6 source_view x roll_bucket strata; validation retains every image and reports each view/roll separately",
+  "roll_definition": "Clockwise pivot-to-tick0 axis relative image-down; negativeleft/positiveright. Perspective retained. Not3Dcameraattitude.",
+  "roll_buckets_degrees": {
+    "left": [
+      -25.0,
+      -8.0
+    ],
+    "straight": [
+      -4.0,
+      4.0
+    ],
+    "right": [
+      8.0,
+      25.0
+    ]
+  },
+  "maximum_absolute_roll_target_error_deg": 9.592326932761353e-14,
+  "minimum_full_parent_pixel_footprint_margin_px": 1.9999999999998863,
+  "geometry_sampling_retries": 0,
+  "source_inputs": {
+    "straight_v3": {
+      "source_dataset": "real_adaptation_v3/dataset500",
+      "parent_count": 500,
+      "recording_group": "clip181323",
+      "annotation_sha256": "f4774bcb610eab77ef0e1f5ce8dedc06747f36bc7a0f36a66e2d1ce8df2be238",
+      "calibration_sha256": "06ca1b34c61bbc600c0898e3a1e4c0dd017a9b7e05ede6b50342cb0346c0e276",
+      "reference_sha256": "f417ef561a0c50b12957a1738c86352e4e7ff0b04ba846654eb6478ab4b9b1e8"
+    },
+    "tilted_v4": {
+      "source_dataset": "real_adaptation_v4/dataset2000",
+      "parent_count": 2000,
+      "recording_group": "clip174359",
+      "annotation_sha256": "df6122e77cb5ea5b9ee95b55c3e52ed22e292f872ca337487b7693c2a12ed5e4",
+      "calibration_sha256": "2581a049a418d0f337a9997dcd6d196aef7d49d4d9194acc2bc176f14441d2f5",
+      "reference_sha256": "0bd0420fe12730f7e6c1fc1be6e05adcbda481a314d213ea837d5188b4920cb3"
+    }
+  },
+  "parent_split_preserved": true,
+  "source_group_split_disjoint": true,
+  "all_12_landmarks_finite_inside_frame_and_outside_lcd": true,
+  "all_needle_segments_outside_lcd": true,
+  "all_masks_binary_and_masked_pixels_exact128": true,
+  "no_new_crop_or_mirror": true,
+  "no_photometric_change_beyond_resampling_and_mask_reapplication": true,
+  "source_images_modified": false,
+  "video_testing_performed": false,
+  "model_inference_performed": false,
+  "label_geometry_oracle": {
+    "scope": "STATIC synthetic label-only geometry checks, not model/video inference or measured accuracy",
+    "canonical_calibration_source": "tilted_v4",
+    "canonical_calibration_sha256": "2581a049a418d0f337a9997dcd6d196aef7d49d4d9194acc2bc176f14441d2f5",
+    "accepted": 7500,
+    "rejected": 0,
+    "by_source_view": {
+      "straight_v3": {
+        "count": 1500,
+        "mean_abs_kmh": 0.2332989512452269,
+        "max_abs_kmh": 0.5335506124535954,
+        "p95_abs_kmh": 0.46271358495338666
+      },
+      "tilted_v4": {
+        "count": 6000,
+        "mean_abs_kmh": 2.245452739381151e-06,
+        "max_abs_kmh": 1.4093918991875398e-05,
+        "p95_abs_kmh": 5.692876936791437e-06
+      }
+    },
+    "interpretation": "Small cross-calibration differences are retained and disclosed; original requested speed labels are unchanged."
+  },
+  "opencv_version": "4.14.0",
+  "numpy_version": "2.1.3",
+  "builder_sha256": "3d210be95cab3547ec374b14ec1a9d37d148292f05e376a1b93e55da5e2b41c3",
+  "elapsed_seconds": 486.6344627998769,
+  "limitation": "Two existing development recordings. Synthetic source/parent holdouts are not independent real-camera accuracy. Straight clip181323 and dayclip174359 are now both source recordings, including shared donor/calibration dependence."
+}

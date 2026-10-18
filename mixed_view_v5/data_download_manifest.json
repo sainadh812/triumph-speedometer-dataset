@@ -1,0 +1,78 @@
+{
+  "archive_name": "mixed_views_landmarks_7500_v5.zip",
+  "root": "dataset",
+  "bytes": 614649084,
+  "sha256": "aaae6a4b1d64eddf0316de7c9425778ae450dc0a472f4b036faac9e7ed0c5fc8",
+  "parts": [
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part00",
+      "bytes": 47185920,
+      "sha256": "c9b31912998b20f3f641d9638cd32eb4aec9b7739851f0664926a85def30cdd8"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part01",
+      "bytes": 47185920,
+      "sha256": "9c6ef512feca307a467e0eb5a99cf154def558ead3cf6250eb5d9d5bf1ea2e10"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part02",
+      "bytes": 47185920,
+      "sha256": "a6ed3490cbb05f6110d27bd33b203dcb12b5c7cda7eb589869ac217ac6a07c97"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part03",
+      "bytes": 47185920,
+      "sha256": "6213bdb8706db42d6e0e845f08a45c4c94a479663ec1613db656e6d47b9b971f"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part04",
+      "bytes": 47185920,
+      "sha256": "c4e7fd188b11de0e8fb438cf4b3b0e983ce10f14608e91a879589b48562ba465"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part05",
+      "bytes": 47185920,
+      "sha256": "d4da6bdeae4602f9a43b64cdd4deb7c6605980d6b73034393aa597265a62b95f"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part06",
+      "bytes": 47185920,
+      "sha256": "22064c193c269411d0fdf47a7088a3b7723ceb5427437fe4c888545820b141dc"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part07",
+      "bytes": 47185920,
+      "sha256": "ac51c91021a471d8ab7520b152a146ceb90ddc62b9d4a8ebd855b737b252d9c1"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part08",
+      "bytes": 47185920,
+      "sha256": "a00d947e18dcfc720e8b8440969971c41ad41d5e58e9b311a813c1d85a1cd592"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part09",
+      "bytes": 47185920,
+      "sha256": "b752f8c8fdfc52a11cef26e034055613ae202e71ad33ec3b2ef7e9c8007cbf12"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part10",
+      "bytes": 47185920,
+      "sha256": "0a09617225dc8a3660c66b6478d7f19962f7a93f1eccbefb1d2d48be853a5a70"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part11",
+      "bytes": 47185920,
+      "sha256": "32b26347888cccea786815b4c5d6dede75bdfa970e1c8f55422c96cc39580f9a"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part12",
+      "bytes": 47185920,
+      "sha256": "ac22b55d29179e829989074405dbc5a516690f89280041388b8264928224483b"
+    },
+    {
+      "filename": "mixed_views_landmarks_7500_v5.zip.part13",
+      "bytes": 1232124,
+      "sha256": "425ea2e273fe53250811d35593c62bc4db8b3d4ef7eb53503848f5dc8deb52a5"
+    }
+  ]
+}

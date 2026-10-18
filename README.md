@@ -1,5 +1,13 @@
 # Triumph speedometer synthetic dataset
 
+## Mixed camera views V5
+
+[V5](mixed_view_v5/README.md) combines the reviewed straight and daytime datasets into **7,500 masked, labeled 512×512 images** with left, straight and right camera-roll variants. Balanced batches cover both source views; all 12 landmarks move with the image. The input pipeline preserves the video orientation and projects only the LCD mask. Training and before/after testing of both videos run in Colab, with full checkpoints saved every epoch to Drive.
+
+[Open the V5 Colab notebook](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/mixed_view_v5/Triumph_Mixed_Views_V5_Colab.ipynb) · [Verified dataset download](mixed_view_v5/data_download_manifest.json)
+
+These remain same-recording development examples and tests; independent real-world accuracy is unverified.
+
 ## RPM training pilot
 
 The [RPM Colab notebook](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/rpm_training_v1/Triumph_RPM_Training_V1_Colab.ipynb) trains a separate small CNN on **2,000 OpenCV-generated LCD-bar images**, with gear/trip regions masked. It saves every epoch to Drive and supports fresh/latest/best/explicit restart modes. [Dataset, calibration limits and setup](rpm_training_v1/README.md). Approximate synthetic RPM labels are not measured engine RPM; independent real accuracy remains unverified.
