@@ -112,7 +112,11 @@ for role,checkpoint,baseline in [('after',REPORT['best_model_path'],False)]:
              '--output-root',str(EVAL_ROOT/role),'--device','cuda']
     for name in VIDEO_SPECS: command.extend(['--video',str(VIDEO_DIR/name)])
     if baseline: command.append('--baseline-v4')
-    subprocess.run(command,cwd=REPO,check=True)
+    with subprocess.Popen(command,cwd=REPO,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
+                          text=True,bufsize=1) as process:
+        for line in process.stdout: print(line,end='',flush=True)
+        returncode=process.wait()
+        if returncode: raise subprocess.CalledProcessError(returncode,command)
 print('Before/after video evaluation complete:',EVAL_ROOT)
 ''')
     md('''## 7. Save and download the inspection results
@@ -141,7 +145,11 @@ command=[sys.executable,'-u','-m','mixed_view_v5.evaluate_videos',
          '--checkpoint',str(SOURCE_CHECKPOINT),'--dataset',str(DATA_DIR),
          '--output-root',str(BASELINE_ROOT),'--device','cuda','--baseline-v4']
 for name in VIDEO_SPECS: command.extend(['--video',str(VIDEO_DIR/name)])
-subprocess.run(command,cwd=REPO,check=True)
+with subprocess.Popen(command,cwd=REPO,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
+                      text=True,bufsize=1) as process:
+    for line in process.stdout: print(line,end='',flush=True)
+    returncode=process.wait()
+    if returncode: raise subprocess.CalledProcessError(returncode,command)
 print('Baseline complete:',BASELINE_ROOT)
 ''')
     cells=cells[:6]+cells[8:10]+cells[end:]+cells[6:8]+cells[10:end]
