@@ -38,6 +38,14 @@ Both smoke checks and training use guarded AMP updates. The initial loss scale i
 
 Private output layout is `SpeedometerTraining_API_v1/dashboard_joint_v1/<RUN_ID>/<task>/attempt_<timestamp>/`. The run folder contains an immutable `<attempt>_COMPLETE.json` receipt and results archive. Earlier attempts and their checkpoints remain available.
 
+## Post-training video inspection
+
+`build_video_cell.py` creates a separate inference cell for the same notebook. It pins the inference code and an existing training completion receipt, loads all three selected new checkpoints, and downloads the configured private videos by SHA256 and byte count. It never resumes training. If training has already released its runtime, reconnect a T4 and run this cell alone.
+
+`video_test.py` processes every decoded frame from each video's final 120 seconds. The output preserves the full frame, with dashboard/LCD outlines, speed ticks and needle, RPM region and landmarks, speed and larger RPM text. Missing or inconsistent geometry produces an unavailable reading and a recorded reason; raw landmarks remain inspectable. The speed reader fits named ticks to a reviewed training reference plane before angle interpolation, while RPM uses the predicted scale anchors and bar endpoint. These are indicated-reading estimates, not independent measurements of vehicle speed or engine RPM.
+
+Outputs include H264 MP4, per-frame CSV/JSONL, timings and model/source provenance. Reports distinguish input playback FPS, model-pipeline throughput, and full processing throughput including video preparation and encoding. First-batch startup is included, and no frames are discarded for warmup. Every output and a result archive are checksum verified in Drive before the runtime is released. This inspection uses the source recordings and is not an independent-recording accuracy test.
+
 ## Fresh and resumable runs
 
 Each epoch checkpoint contains model and optimizer weights, scheduler, AMP scaler, Python/NumPy/Torch RNG state, loader generator states, history and the best selected weights. Resume checks dataset, preprocessing, architecture, runtime code and training configuration identities.
