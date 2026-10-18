@@ -487,6 +487,15 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
         for split, state in payload['loader_generator_states'].items():
             generators[split].set_state(state)
         _restore_rng(payload['rng_state'])
+    elif transfer_provenance is not None:
+        # Measure the unchanged starting weights on this experiment's validation
+        # labels before updating them. This makes day/night retention comparable
+        # even when the previous run used a different loss aggregation policy.
+        baseline = evaluate(model, loaders['val'], device, config, identity['point_names'])
+        initialization['validation_before_finetuning'] = baseline
+        write_json(directory / 'initial_validation.json', baseline)
+        emit({'event': 'initial_weights_validation', 'task': task, 'validation': baseline,
+              'training_updates': 0, 'test_set_used': False}, progress_callback)
     emit({'event': 'task_start', 'task': task, 'input_hw': identity['input_hw'],
           'counts': validated['tasks'][task]['counts'], 'resume': resume, 'next_epoch': start_epoch,
           'batch_size': config.batch_size, 'amp': config.amp, 'training_sampling': sampling_plan}, progress_callback)
