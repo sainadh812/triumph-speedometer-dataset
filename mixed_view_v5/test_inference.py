@@ -7,6 +7,60 @@ from mixed_view_v5.inference import (DualReferenceMasker,apply_projected_mask,le
 
 
 class MaskTests(unittest.TestCase):
+    def test_partial_lcd_is_clipped_without_masking_sensor_padding(self):
+        pivot=np.array([210,260.]);angles=np.linspace(np.pi/2,3*np.pi/2,10)
+        ticks=pivot+110*np.c_[np.cos(angles),np.sin(angles)]
+        polygon=np.array([[350,120],[460,120],[460,220],[350,220]],float)
+        footprint=[[95.4,0],[400.25,0],[400.25,511],[95.4,511]]
+        mask,report=projected_mask_safety(polygon,ticks,pivot,footprint)
+        self.assertTrue(report['accepted']);self.assertTrue(report['partial_visibility'])
+        self.assertEqual(report['reason'],'safe_partial_visible_lcd')
+        self.assertAlmostEqual(report['visible_area_px2'],5025.,places=3)
+        self.assertAlmostEqual(report['visible_fraction'],5025./11000,places=5)
+        self.assertFalse(np.any(mask[:,401:]));self.assertFalse(np.any(mask[:,:96]))
+        image=np.arange(512*512,dtype=np.uint8).reshape(512,512)
+        out=apply_projected_mask(image,mask)
+        self.assertTrue(np.array_equal(out[mask==0],image[mask==0]))
+        self.assertEqual(out[160,390],128)
+        self.assertTrue(np.array_equal(out[:,401:],image[:,401:]))
+
+    def test_near_edge_reference_can_move_beyond_sensor(self):
+        pivot=np.array([210,260.]);angles=np.linspace(np.pi/2,3*np.pi/2,10)
+        ticks=pivot+110*np.c_[np.cos(angles),np.sin(angles)]
+        polygon=np.array([[350,120],[417,120],[417,220],[350,220]],float)
+        shift=np.array([8,0])
+        mask,report=projected_mask_safety(polygon+shift,ticks+shift,pivot+shift,
+                                         [[95,0],[416,0],[416,511],[95,511]])
+        self.assertIsNotNone(mask);self.assertTrue(report['accepted'])
+        self.assertTrue(report['partial_visibility']);self.assertFalse(np.any(mask[:,417:]))
+
+    def test_lcd_sliver_or_fully_offscreen_remains_rejected(self):
+        pivot=np.array([210,260.]);angles=np.linspace(np.pi/2,3*np.pi/2,10)
+        ticks=pivot+110*np.c_[np.cos(angles),np.sin(angles)]
+        polygon=[[350,120],[460,120],[460,220],[350,220]]
+        for right in (352,340):
+            mask,report=projected_mask_safety(polygon,ticks,pivot,
+                                             [[95,0],[right,0],[right,511],[95,511]])
+            self.assertIsNone(mask);self.assertFalse(report['accepted'])
+            self.assertEqual(report['reason'],'insufficient_visible_lcd_area')
+
+    def test_clipping_does_not_bypass_analog_protection(self):
+        pivot=np.array([210,260.]);angles=np.linspace(np.pi/2,3*np.pi/2,10)
+        ticks=pivot+110*np.c_[np.cos(angles),np.sin(angles)]
+        mask,report=projected_mask_safety([[190,190],[460,190],[460,310],[190,310]],ticks,pivot,
+                                         [[95,0],[400,0],[400,511],[95,511]])
+        self.assertIsNone(mask);self.assertTrue(report['partial_visibility'])
+        self.assertEqual(report['reason'],'projected_lcd_overlaps_protected_needle_or_ticks')
+
+    def test_fully_visible_mask_is_unchanged(self):
+        pivot=np.array([210,260.]);angles=np.linspace(np.pi/2,3*np.pi/2,10)
+        ticks=pivot+110*np.c_[np.cos(angles),np.sin(angles)]
+        polygon=[[350,120],[460,120],[460,220],[350,220]]
+        mask,report=projected_mask_safety(polygon,ticks,pivot,[[0,0],[511,0],[511,511],[0,511]])
+        self.assertTrue(report['accepted']);self.assertFalse(report['partial_visibility'])
+        self.assertEqual(report['visible_fraction'],1.)
+        self.assertTrue(np.array_equal(mask,mask_polygon(polygon)))
+
     def test_partial_reference_coverage_requires_semantic_agreement(self):
         small=mask_polygon([[350,120],[390,120],[390,220],[350,220]])
         full=mask_polygon([[350,120],[460,120],[460,220],[350,220]])

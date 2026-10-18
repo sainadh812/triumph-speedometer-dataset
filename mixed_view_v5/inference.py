@@ -24,6 +24,8 @@ from real_adaptation_v4.geometry import LANDMARK_NAMES, load_calibration, read_s
 SIZE = 512
 MASK_VALUE = 128
 PREPROCESSING_ID = 'gray512_fullframe_native_view_lcd128_mask_v5_imagenet_normalized'
+MASK_VISIBILITY_POLICY = 'projected_lcd_intersection_with_visible_sensor_v1'
+MIN_VISIBLE_LCD_AREA_PX2 = 350.
 PARTIAL_MASK_MIN_CONTAINMENT = .95
 # Manual reference ticks are uncertain by about2–3 native512px. This fixed
 # bound is declared before real-video inference and is not fitted to outputs.
@@ -115,20 +117,50 @@ def apply_projected_mask(gray,mask):
 
 
 def projected_mask_safety(polygon,ticks,pivot,footprint):
-    """Reject geometry that could hide tick centers or the needle's sweep."""
+    """Mask only the visible LCD; reject any overlap with the needle's sweep.
+
+    A correctly registered LCD may extend beyond the sensor boundary. Its
+    off-screen area is not evidence of a failed registration. Intersect the
+    projection with the current sensor footprint before checking visible area
+    and analog protection; padding never becomes part of the applied mask.
+    """
     polygon=np.asarray(polygon,float);ticks=np.asarray(ticks,float);pivot=np.asarray(pivot,float)
     if not np.isfinite(polygon).all() or not cv2.isContourConvex(polygon.astype(np.float32)):
         return None,{'accepted':False,'reason':'invalid_or_nonconvex_lcd_polygon'}
     area=abs(float(cv2.contourArea(polygon.astype(np.float32))))
-    if not 350<=area<=SIZE*SIZE*.45:
+    if not MIN_VISIBLE_LCD_AREA_PX2<=area<=SIZE*SIZE*.45:
         return None,{'accepted':False,'reason':'implausible_lcd_area','area_px2':area}
     bounds=np.asarray(footprint,float)
-    if ((polygon[:,0]<bounds[:,0].min()-4).any() or (polygon[:,0]>bounds[:,0].max()+4).any()
-        or (polygon[:,1]<bounds[:,1].min()-4).any() or (polygon[:,1]>bounds[:,1].max()+4).any()):
-        return None,{'accepted':False,'reason':'lcd_outside_sensor_footprint'}
+    if bounds.shape!=(4,2) or not np.isfinite(bounds).all() or not cv2.isContourConvex(bounds.astype(np.float32)):
+        return None,{'accepted':False,'reason':'invalid_sensor_footprint'}
+    frame_bounds=np.array([[0,0],[SIZE-1,0],[SIZE-1,SIZE-1],[0,SIZE-1]],np.float32)
+    sensor_area,sensor_polygon=cv2.intersectConvexConvex(bounds.astype(np.float32),frame_bounds)
+    if sensor_polygon is None or sensor_area<=0:
+        return None,{'accepted':False,'reason':'invalid_sensor_footprint'}
+    visible_area,visible_polygon=cv2.intersectConvexConvex(polygon.astype(np.float32),sensor_polygon)
+    visibility={'area_px2':area,'visible_area_px2':float(visible_area),
+                'visible_fraction':float(np.clip(visible_area/area,0,1)),
+                'partial_visibility':bool(area-visible_area>1e-3),
+                'visibility_policy':MASK_VISIBILITY_POLICY,
+                'minimum_visible_area_px2':MIN_VISIBLE_LCD_AREA_PX2,
+                'sensor_footprint_input_xy':bounds.tolist()}
+    if visible_polygon is None or visible_area<MIN_VISIBLE_LCD_AREA_PX2:
+        return None,dict(visibility,accepted=False,reason='insufficient_visible_lcd_area')
+    visible_polygon=visible_polygon.reshape(-1,2)
+    visibility['visible_lcd_polygon_input_xy']=visible_polygon.tolist()
     if ticks.shape!=(10,2) or pivot.shape!=(2,) or not np.isfinite(ticks).all() or not np.isfinite(pivot).all():
         return None,{'accepted':False,'reason':'invalid_protected_dial_geometry'}
-    mask=mask_polygon(polygon)
+    mask=mask_polygon(visible_polygon)
+    mask=cv2.bitwise_and(mask,mask_polygon(sensor_polygon.reshape(-1,2)))
+    # Letterboxing has an axis-aligned sensor footprint. Keep only pixel
+    # centers inside its true bounds, even when polygon rasterization rounds.
+    yy,xx=np.ogrid[:SIZE,:SIZE]
+    sensor_centers=((xx>=bounds[:,0].min())&(xx<=bounds[:,0].max())
+                    &(yy>=bounds[:,1].min())&(yy<=bounds[:,1].max()))
+    mask[~sensor_centers]=0
+    visibility['visible_mask_pixels']=int(np.count_nonzero(mask))
+    if visibility['visible_mask_pixels']<MIN_VISIBLE_LCD_AREA_PX2:
+        return None,dict(visibility,accepted=False,reason='insufficient_visible_lcd_area')
     protect=np.zeros_like(mask)
     # The filled fan protects all intermediate needle angles, not only the ten
     # calibration rays. It is an exclusion guard, never a speed label.
@@ -140,8 +172,8 @@ def projected_mask_safety(polygon,ticks,pivot,footprint):
         cv2.circle(protect,tuple(np.rint(point).astype(int)),4,255,-1)
         cv2.line(protect,tuple(np.rint(pivot).astype(int)),tuple(np.rint(point).astype(int)),255,3)
     if np.any((mask>0)&(protect>0)):
-        return None,{'accepted':False,'reason':'projected_lcd_overlaps_protected_needle_or_ticks'}
-    return mask,{'accepted':True,'reason':'safe_projected_mask','area_px2':area}
+        return None,dict(visibility,accepted=False,reason='projected_lcd_overlaps_protected_needle_or_ticks')
+    return mask,dict(visibility,accepted=True,reason='safe_partial_visible_lcd' if visibility['partial_visibility'] else 'safe_projected_mask')
 
 
 class MaskReference:
@@ -198,7 +230,9 @@ class MaskReference:
             if mask is None:return None,dict(report,reason=safety['reason'])
         except (ValueError,cv2.error,np.linalg.LinAlgError) as exc:
             return None,dict(report,reason='invalid_mask_projection',error_type=type(exc).__name__)
-        report.update(accepted=True,reason='accepted',reference_to_input_h=h.tolist(),lcd_polygon_input_xy=polygon.tolist(),
+        report.update(accepted=True,reason='accepted',reference_to_input_h=h.tolist(),
+                      lcd_polygon_input_xy=safety['visible_lcd_polygon_input_xy'],
+                      projected_lcd_polygon_input_xy=polygon.tolist(),
                       protected_points_input_xy=np.concatenate([pivot[None],ticks],axis=0).tolist())
         return mask,report
 
@@ -221,6 +255,7 @@ class DualReferenceMasker:
             if mask is not None and report['accepted']:proposals.append((mask,report))
         meta={'accepted':False,'reason':None,'candidates':reports,'lcd_mask_applied':False,
               'input_image_warped':False,'method':'dual_reference_SIFT_mask_projection_only',
+              'mask_visibility_policy':MASK_VISIBILITY_POLICY,
               'source_labels_used':False,'previous_frame_transform_used':False}
         if not proposals:return None,None,dict(meta,reason='no_reliable_lcd_mask')
         proposals.sort(key=lambda pair:(pair[1]['inliers'],-pair[1]['rmse_px']),reverse=True)
@@ -239,7 +274,8 @@ class DualReferenceMasker:
             meta['candidate_mask_agreement']=agreements
         partial=any(item['reason']=='compatible_partial_reference_mask' for item in meta.get('candidate_mask_agreement',[]))
         meta.update(accepted=True,reason='compatible_partial_reference_mask' if partial else 'accepted',lcd_mask_applied=True,selected_reference_id=best['reference_id'],
-                    lcd_polygon_input_xy=best['lcd_polygon_input_xy'],reference_to_input_h=best['reference_to_input_h'])
+                    lcd_polygon_input_xy=best['lcd_polygon_input_xy'],reference_to_input_h=best['reference_to_input_h'],
+                    selected_mask_safety=best.get('mask_safety'))
         return apply_projected_mask(gray,mask),mask,meta
 
 
@@ -306,6 +342,7 @@ class V5Reader:
             'inference_code_sha256':sha256(__file__),'speed_geometry':'frozen_V4_predicted_ticks_only',
             'geometry_code_sha256':sha256(ROOT/'real_adaptation_v4/geometry.py'),
             'input_image_warped':False,'input_roi_cropped':False,'smoothing':False,
+            'mask_visibility_policy':MASK_VISIBILITY_POLICY,
             'limitation':'Current-frame indicated needle speed; startup sweeps are not road speed. No real ground truth accuracy.'}
 
     def predict(self,frame_bgr,include_model_input=False):
