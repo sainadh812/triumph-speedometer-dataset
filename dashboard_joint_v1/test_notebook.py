@@ -1,5 +1,6 @@
 """Compile generated notebook cells and verify pins; execute no notebook code."""
 import hashlib
+import ast
 import json
 from pathlib import Path
 import unittest
@@ -10,6 +11,31 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 class NotebookTests(unittest.TestCase):
+    def test_finetune_config_survives_runtime_switch_and_all_resume_skips_initial_weights(self):
+        reference={'run_id':'source_run','complete_id':'source_receipt'}
+        configs={task:{'batch_size':16,'epochs':20,'min_epochs':5,'daylight_fraction':.7,
+                       'learning_rate':1e-4} for task in ('localizer','speed','rpm')}
+        notebook=build(REPO,'a'*40,{'initialization_reference':reference,'configs':configs})
+        for cell in notebook['cells']:
+            if cell['cell_type']=='code':
+                compile(''.join(cell['source']),'<configured-finetune-cell>','exec')
+        code=''.join(next(c for c in notebook['cells'] if c['id']=='joint_train')['source'])
+        tree=ast.parse(code)
+        assignments={node.targets[0].id:node for node in ast.walk(tree) if isinstance(node,ast.Assign)
+                     and isinstance(node.targets[0],ast.Name)}
+        self.assertEqual(ast.literal_eval(assignments['configs'].value),configs)
+        self.assertEqual(ast.literal_eval(assignments['INITIALIZATION_REFERENCE'].value),reference)
+        for modes,expected in [({'speed':'fresh','rpm':'latest'},reference),({'speed':'latest','rpm':'best'},None)]:
+            state={'modes':modes,'INITIALIZATION_REFERENCE':reference}
+            exec(compile(ast.Module(body=[assignments['active_initialization']],type_ignores=[]),'<mode-policy>','exec'),state)
+            self.assertEqual(state['active_initialization'],expected)
+        calls=[node for node in ast.walk(tree) if isinstance(node,ast.Call) and isinstance(node.func,ast.Name)
+               and node.func.id in ('prepare','run_all')]
+        self.assertEqual(len(calls),2)
+        for call in calls:
+            keyword=next(k for k in call.keywords if k.arg=='initialization_reference')
+            self.assertEqual(keyword.value.id,'active_initialization')
+
     def test_generated_cells_compile_without_running(self):
         notebook = build(REPO, 'a' * 40)
         self.assertEqual(notebook['nbformat'], 4)

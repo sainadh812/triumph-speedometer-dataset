@@ -51,7 +51,13 @@ def build(repository,commit,config=None):
     reference=cfg.get('dataset_reference',{'id':'SET_PRIVATE_DATASET_FILE_ID','sha256':'SET_DATASET_SHA256','size':0})
     workspace=cfg.get('workspace_id','SET_PRIVATE_WORKSPACE_FOLDER_ID')
     run_id=cfg.get('run_id','joint_v1_first_run')
-    settings=f'WORKSPACE_ID = {workspace!r}\nDATASET_REFERENCE = {reference!r}\n'
+    initialization_reference=cfg.get('initialization_reference')
+    configs=cfg.get('configs',{
+        'localizer': {'batch_size':16, 'epochs':40, 'min_epochs':10, 'patience':8},
+        'speed': {'batch_size':32, 'epochs':40, 'min_epochs':10, 'patience':8},
+        'rpm': {'batch_size':64, 'epochs':40, 'min_epochs':10, 'patience':8},
+    })
+    settings=f'WORKSPACE_ID = {workspace!r}\nDATASET_REFERENCE = {reference!r}\nINITIALIZATION_REFERENCE = {initialization_reference!r}\n'
     description='''# Train dashboard/LCD, masked speed, and RPM together
 
 This workflow trains **all three components sequentially in one Colab run**. It starts from ImageNet features with new task heads; it does not load or compare the old readers.
@@ -70,7 +76,7 @@ Every epoch saves weights, optimizer, scheduler, AMP and RNG state to Drive, ver
 import torch
 if torch.cuda.is_available():
     raise RuntimeError('Use Hardware accelerator=None for preparation; GPU is not needed here.')
-'''+setup+settings+'''prepared = prepare(store, WORKSPACE_ID, DATASET_REFERENCE)
+'''+setup+settings+'''prepared = prepare(store, WORKSPACE_ID, DATASET_REFERENCE, initialization_reference=INITIALIZATION_REFERENCE)
 print('CPU preflight passed. The dataset and all task splits are verified. Now select T4 and run cell2.')
 '''
     gpu=f'''#@title 2. T4: train all components and save every epoch
@@ -81,21 +87,23 @@ RPM_RESUME = "fresh" #@param ["fresh", "latest", "best"]
 AUTO_DISCONNECT = True #@param {{type:"boolean"}}
 '''+'''# Bootstrap/preparation failures have no new training results to preserve.
 try:
-'''+''.join('    '+line+'\n' for line in (setup+settings).splitlines())+'''    prepared = prepare(store, WORKSPACE_ID, DATASET_REFERENCE)
+'''+''.join('    '+line+'\n' for line in (setup+settings).splitlines())+'''    modes = {'localizer':LOCALIZER_RESUME,'speed':SPEED_RESUME,'rpm':RPM_RESUME}
+    active_initialization = INITIALIZATION_REFERENCE if 'fresh' in modes.values() else None
+    prepared = prepare(store, WORKSPACE_ID, DATASET_REFERENCE, initialization_reference=active_initialization)
 except BaseException:
     from google.colab import runtime
     print('Preparation failed before training; releasing the runtime. No new training artifacts exist.')
     runtime.unassign()
     raise
-configs = {
-    'localizer': {'batch_size':16, 'epochs':40, 'min_epochs':10, 'patience':8},
-    'speed': {'batch_size':32, 'epochs':40, 'min_epochs':10, 'patience':8},
-    'rpm': {'batch_size':64, 'epochs':40, 'min_epochs':10, 'patience':8},
-}
+'''+f'configs = {configs!r}\n'+'''
 summary = run_all(store, prepared, RUN_ID,
-    resume_modes={'localizer':LOCALIZER_RESUME,'speed':SPEED_RESUME,'rpm':RPM_RESUME},
-    configs=configs, auto_disconnect=AUTO_DISCONNECT)
+    resume_modes=modes, configs=configs, auto_disconnect=AUTO_DISCONNECT,
+    initialization_reference=active_initialization)
 '''
+    if initialization_reference is not None:
+        description=description.replace('It starts from ImageNet features with new task heads; it does not load or compare the old readers.',
+            'This new experiment loads the verified selected weights from a completed compatible run, including its task heads. Optimizer, scheduler and history start fresh. Day/night validation of the starting weights is recorded before updating them.')
+        description+='\nConfigured daylight sampling fractions and lower fine-tuning learning rates appear in cell2. A runtime replacement discards /content; setup restores verified data and selected initial weights in the current VM. All-latest/best resume uses its self-contained epoch checkpoints.\n'
     end='''## Results and restart
 
 Private Drive path: `SpeedometerTraining_API_v1 / dashboard_joint_v1 / RUN_ID`.
@@ -106,6 +114,8 @@ If interrupted, keep the same RUN_ID. Choose **latest** for tasks with a saved c
 
 Landmark pixel errors, LCD mask IoU, box IoU and visibility/presence metrics describe this run. They are not yet a claim of physical RPM accuracy or98% real-world speed accuracy. Inspect new video results before making that conclusion. No old-model comparison is performed.
 '''
+    if initialization_reference is not None:
+        end=end.replace('No old-model comparison is performed.', 'The unchanged starting weights are evaluated on validation only, for a comparable day/night retention baseline. Test data never selects weights.')
     cells=[]
     for ident,kind,source in [('joint_intro','markdown',description),('joint_cpu','code',cpu),('joint_train','code',gpu),('joint_results','markdown',end)]:
         cell={'cell_type':kind,'metadata':{'id':ident},'source':source.splitlines(keepends=True),'id':ident}
