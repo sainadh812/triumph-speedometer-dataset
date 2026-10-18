@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "archive_entries": 20725,
+  "exact_manifest_asset_set": true,
+  "part_count": 8,
+  "archive_bytes": 340574817,
+  "all_part_hashes_and_concatenated_archive_hash_match": true,
+  "videos_or_weights_included": false
+}

@@ -1,0 +1,38 @@
+{
+  "status": "static_mirror_generation_checks_passed",
+  "dataset_version": "mirrored_v2",
+  "base_manifest_sha256": "b5bca7882b2f21671860203e7b16ff44ba0728cc0eaaa8f732bd534e20502835",
+  "base_sample_count": 4426,
+  "mirror_parent_count": 600,
+  "sample_counts": {
+    "train": 4800,
+    "val": 614,
+    "test": 212
+  },
+  "mirror_counts": {
+    "horizontal": 600,
+    "vertical": 600
+  },
+  "mirrored_training_fraction": 0.25,
+  "train_mirror_counts_per_source_recording_and_axis": {
+    "horizontal": {
+      "day174359": 200,
+      "night181323": 200,
+      "rpm220557": 200
+    },
+    "vertical": {
+      "day174359": 200,
+      "night181323": 200,
+      "rpm220557": 200
+    }
+  },
+  "all32_train_families_cover_all12_parent_roll_bins_for_each_axis": true,
+  "original_sample_lines_exact": true,
+  "original_image_and_mask_bytes_preserved": 16095,
+  "validation_test_rows_and_assets_unchanged": true,
+  "exact_flip_pixels_and_roundtrip": true,
+  "homography_polygon_and_truncation_roundtrip": true,
+  "all_masks_inside_valid_and_protected_disjoint": true,
+  "no_new_model_forward_training_or_video_test": true,
+  "mirror_semantics": "Synthetic image reflection, not a physically moved right-side camera: LCD digits and dial printing are reflected. Parent generating roll is retained; perspective augmentation and reflection are distinct. No speed/RPM target is changed or created."
+}

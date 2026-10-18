@@ -1,0 +1,52 @@
+{
+  "manifest_sha256": "288ef05c34ad9ddee185ac2612d5355bdc9140635756326c4c5f563f8894bb63",
+  "samples_sha256": "001fec3c6b341570834f82a4e5dc228c834931fc4096236d6858537f90134d6f",
+  "sources_sha256": "87862dabc09cdfcb5bb4b09e69234f8c771737e1154d437f078b9f9fe9901a9a",
+  "protected_files_digest": "2d96e927407f9188f353a9f920d5c0bda7bbbf0552be0665bf522de20d6b3328",
+  "protected_file_count": 20724,
+  "sample_counts": {
+    "train": 4800,
+    "val": 614,
+    "test": 212
+  },
+  "source_counts": {
+    "train": 32,
+    "val": 14,
+    "test": 12
+  },
+  "train_validation_recording_overlap": [
+    "day174359",
+    "night181323",
+    "rpm220557"
+  ],
+  "test_recording_groups": [
+    "rpm220558"
+  ],
+  "test_recording_disjoint": true,
+  "protected_analog_sample_count": 3617,
+  "split_policy": {
+    "method": "temporal_blocks_with_excluded_gaps; entirelyheldoutRPM220558test",
+    "train_val_recording_overlap": [
+      "day174359",
+      "night181323",
+      "rpm220557"
+    ],
+    "excluded_source_ids": [
+      "night181323_0072",
+      "night181323_0264",
+      "night181323_0300",
+      "night181323_0360",
+      "day174359_0360",
+      "day174359_0390",
+      "rpm220557_0086",
+      "rpm220557_0260",
+      "rpm220557_0304",
+      "rpm220557_0347"
+    ],
+    "test_source_groups": [
+      "rpm220558"
+    ],
+    "all_descendants_inherit_source_split": true
+  },
+  "limitation": "Validation uses temporally separated source families within recordings; test is a separate recording, with annotated masks subject to boundary uncertainty"
+}

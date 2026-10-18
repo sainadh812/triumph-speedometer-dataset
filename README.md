@@ -1,5 +1,13 @@
 # Triumph speedometer synthetic dataset
 
+## Learned LCD detector with horizontal and vertical mirrors
+
+[LCD dataset V2](learned_lcd_v1/mirrored_v2/README.md) adds **600 horizontal and 600 vertical mirrors**, with identically transformed screen masks, to the reviewed LCD dataset. It contains **4,800 training / 614 validation / 212 test images** at 512×512; original validation and test samples remain unchanged. These reflections are augmentation, not physical camera viewpoints.
+
+[Open the LCD V2 Colab notebook](https://colab.research.google.com/github/sainadh812/triumph-speedometer-dataset/blob/main/learned_lcd_v1/mirrored_v2/Triumph_Learned_LCD_V2_Mirrors_Colab.ipynb) · [Verified dataset download](learned_lcd_v1/mirrored_v2/download_manifest.json)
+
+The notebook trains LCD segmentation with full Drive checkpoints, then tests it ahead of the frozen V5 speed model. Dataset preparation does not establish model accuracy or arbitrary-angle speed performance.
+
 ## Mixed camera views V5
 
 [V5](mixed_view_v5/README.md) combines the reviewed straight and daytime datasets into **7,500 masked, labeled 512×512 images** with left, straight and right camera-roll variants. Balanced batches cover both source views; all 12 landmarks move with the image. The input pipeline preserves the video orientation and projects only the LCD mask. Training and before/after testing of both videos run in Colab, with full checkpoints saved every epoch to Drive.

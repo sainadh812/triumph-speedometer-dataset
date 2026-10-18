@@ -6,7 +6,10 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 
 
-def build(commit, manifest_sha):
+def build(commit, manifest_sha, *, output_dir=None,
+          notebook_name='Triumph_Learned_LCD_V1_Colab.ipynb',
+          experiment_name='learned_lcd_v1', dataset_subdir='',
+          title=None, introduction=None):
     cells = []
     def md(source): cells.append({'cell_type': 'markdown', 'metadata': {}, 'source': source.strip().splitlines(True)})
     def code(source): cells.append({'cell_type': 'code', 'metadata': {}, 'execution_count': None, 'outputs': [], 'source': source.strip().splitlines(True)})
@@ -147,13 +150,36 @@ print('Verified Drive archive:',DRIVE_ZIP,'| SHA256:',sha256(RESULT_ZIP))
 from google.colab import files
 files.download(str(RESULT_ZIP))
 ''')
+    # Optional dataset variants share the executable workflow without changing V1.
+    def replace_once(index, old, new):
+        source = ''.join(cells[index]['source'])
+        if source.count(old) != 1:
+            raise ValueError(f'Notebook template changed at cell {index}: {old!r}')
+        cells[index]['source'] = source.replace(old, new, 1).splitlines(True)
+
+    if experiment_name != 'learned_lcd_v1':
+        replace_once(1, 'EXPERIMENT_NAME = "learned_lcd_v1"',
+                     'EXPERIMENT_NAME = '+json.dumps(experiment_name))
+        replace_once(3, "Path('/content/learned_lcd_v1_work')",
+                     'Path('+repr('/content/'+experiment_name+'_work')+')')
+    if dataset_subdir:
+        dataset_manifest = dataset_subdir.rstrip('/')+'/download_manifest.json'
+        replace_once(5, "BASE+'download_manifest.json'", 'BASE+'+repr(dataset_manifest))
+    if title is not None:
+        replace_once(0, '# Triumph — learned LCD detection + frozen V5 speed', '# '+title)
+    if introduction:
+        source = ''.join(cells[0]['source'])
+        heading, body = source.split('\n\n', 1)
+        cells[0]['source'] = (heading+'\n\n'+introduction.strip()+'\n\n'+body).splitlines(True)
     for index, cell in enumerate(cells): cell['id'] = f'learned-lcd-{index:02d}'
     notebook = {'cells': cells, 'metadata': {'accelerator': 'GPU', 'colab': {'provenance': [], 'gpuType': 'T4'},
                  'kernelspec': {'display_name': 'Python 3', 'name': 'python3'}, 'language_info': {'name': 'python'}},
                 'nbformat': 4, 'nbformat_minor': 5}
-    destination = ROOT/'Triumph_Learned_LCD_V1_Colab.ipynb'
+    destination_root = Path(output_dir) if output_dir is not None else ROOT
+    destination_root.mkdir(parents=True, exist_ok=True)
+    destination = destination_root/notebook_name
     destination.write_text(json.dumps(notebook, indent=1)+'\n', encoding='utf-8')
-    (ROOT/'colab_cells.json').write_text(json.dumps([''.join(cell['source']) for cell in cells
+    (destination_root/'colab_cells.json').write_text(json.dumps([''.join(cell['source']) for cell in cells
                                                   if cell['cell_type']=='code'], indent=2)+'\n', encoding='utf-8')
     print(destination)
     return destination

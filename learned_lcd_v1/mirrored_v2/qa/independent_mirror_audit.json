@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "base_manifest_sha256": "b5bca7882b2f21671860203e7b16ff44ba0728cc0eaaa8f732bd534e20502835",
+  "sample_counts": {
+    "train": 4800,
+    "val": 614,
+    "test": 212
+  },
+  "original_sample_rows_byte_exact": 4426,
+  "mirror_rows": 1200,
+  "mirror_counts": {
+    "horizontal": 600,
+    "vertical": 600
+  },
+  "unique_mirror_parents": 600,
+  "exact_numpy_flip_array_checks": 4400,
+  "polygon_or_footprint_coordinate_checks": 2400,
+  "homography_composition_checks": 1200,
+  "all32_train_families_span12_parent_roll_bins_per_axis": true,
+  "all_mirrors_training_only": true,
+  "parent_roll_retained_with_explicit_reflection_semantics": true,
+  "lcd_only_no_speed_or_rpm_targets_added": true,
+  "holdout_rows_unchanged": 826,
+  "holdout_asset_bytes_unchanged": 2889,
+  "original_dataset_hashes_reverified": 16317,
+  "local_model_forward_training_or_video_inference": false,
+  "limitation": "Reflections are synthetic appearance changes, not physical camera translations. Validation/test are unchanged and must retain their prior evaluation status.",
+  "copied_base_files_with_identical_expected_hash": 16314,
+  "versioned_metadata_changes": [
+    "preprocessing_config.json",
+    "qa/checks.json",
+    "samples.jsonl"
+  ],
+  "new_manifest_sha256": "288ef05c34ad9ddee185ac2612d5355bdc9140635756326c4c5f563f8894bb63",
+  "strict_dataset_verification": {
+    "status": "passed",
+    "protected_file_count": 20724,
+    "sample_counts": {
+      "train": 4800,
+      "val": 614,
+      "test": 212
+    },
+    "protected_analog_sample_count": 3617,
+    "test_recording_disjoint": true
+  }
+}
