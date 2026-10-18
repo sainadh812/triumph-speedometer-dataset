@@ -1,0 +1,135 @@
+{
+  "frame_index": 0,
+  "pivot_xy": [
+    303.0,
+    240.0
+  ],
+  "ticks": [
+    {
+      "speed_kmh": 0,
+      "xy": [
+        355.5,
+        355.5
+      ],
+      "quality": "observed_daytime_visual_draft",
+      "notes": "Actual daytime major-stroke midpoint between two printedrails, visually reviewed at enlarged scale; approximately2px annotation uncertainty. Zero endpoint is visible in this day frame."
+    },
+    {
+      "speed_kmh": 20,
+      "xy": [
+        308.5,
+        359.5
+      ],
+      "quality": "observed_daytime_visual_draft",
+      "notes": "Actual daytime major-stroke midpoint between two printedrails, visually reviewed at enlarged scale; approximately2px annotation uncertainty."
+    },
+    {
+      "speed_kmh": 40,
+      "xy": [
+        259.5,
+        348.0
+      ],
+      "quality": "observed_daytime_visual_draft",
+      "notes": "Actual daytime major-stroke midpoint between two printedrails, visually reviewed at enlarged scale; approximately2px annotation uncertainty."
+    },
+    {
+      "speed_kmh": 60,
+      "xy": [
+        217.0,
+        322.5
+      ],
+      "quality": "observed_daytime_visual_draft",
+      "notes": "Actual daytime major-stroke midpoint between two printedrails, visually reviewed at enlarged scale; approximately2px annotation uncertainty."
+    },
+    {
+      "speed_kmh": 80,
+      "xy": [
+        192.5,
+        284.5
+      ],
+      "quality": "observed_daytime_visual_draft",
+      "notes": "Actual daytime major-stroke midpoint between two printedrails, visually reviewed at enlarged scale; approximately2px annotation uncertainty."
+    },
+    {
+      "speed_kmh": 100,
+      "xy": [
+        181.0,
+        243.5
+      ],
+      "quality": "observed_daytime_visual_draft",
+      "notes": "Actual daytime major-stroke midpoint between two printedrails, visually reviewed at enlarged scale; approximately2px annotation uncertainty."
+    },
+    {
+      "speed_kmh": 120,
+      "xy": [
+        186.0,
+        204.5
+      ],
+      "quality": "observed_daytime_visual_draft",
+      "notes": "Actual daytime major-stroke midpoint between two printedrails, visually reviewed at enlarged scale; approximately2px annotation uncertainty."
+    },
+    {
+      "speed_kmh": 140,
+      "xy": [
+        206.0,
+        174.0
+      ],
+      "quality": "observed_daytime_visual_draft",
+      "notes": "Actual daytime major-stroke midpoint between two printedrails, visually reviewed at enlarged scale; approximately2px annotation uncertainty."
+    },
+    {
+      "speed_kmh": 160,
+      "xy": [
+        239.2,
+        152.1
+      ],
+      "quality": "observed_daytime_visual_draft",
+      "notes": "Actual daytime major-stroke midpoint between two printedrails, visually reviewed at enlarged scale; approximately2px annotation uncertainty."
+    },
+    {
+      "speed_kmh": 180,
+      "xy": [
+        276.9,
+        143.2
+      ],
+      "quality": "observed_daytime_visual_draft",
+      "notes": "Actual daytime major-stroke midpoint between two printedrails, visually reviewed at enlarged scale; approximately2px annotation uncertainty."
+    }
+  ],
+  "method": "Day frame0 canonical. Tick candidates transferred using image-only SIFT, then all10 major-stroke midpoints independently visually reviewed and refined on actual daytimeimage. Hub center independently visually annotated, not copied from V3 or model output.",
+  "status": "root_visually_reviewed_day_reference_draft",
+  "source_image": "reference.png",
+  "source_image_sha256": "0bd0420fe12730f7e6c1fc1be6e05adcbda481a314d213ea837d5188b4920cb3",
+  "coordinate_system": "512x512 image pixel centers; x right, y down. Each tick is the center of its printed major radial stroke, between the two arc edges, not the numeral center.",
+  "notes": [
+    "Manual draft labels; tick visual uncertainty about2px andpivot about2px, not measuredconfidence.",
+    "Allsourcesfromsame development clip; syntheticvalidation isnotindependentrealtest."
+  ],
+  "lcd_polygon_xy": [
+    [
+      300,
+      161
+    ],
+    [
+      417,
+      123
+    ],
+    [
+      417,
+      248
+    ],
+    [
+      361,
+      265
+    ],
+    [
+      350,
+      260
+    ],
+    [
+      300,
+      180
+    ]
+  ],
+  "original_private_source_image_sha256": "97d001a8d701ad4b039a921530461bfc6c7dc295e0373de564ddb3de3b379796"
+}
