@@ -637,7 +637,7 @@ def show_drive_result(receipt):
     display(HTML('<a target="_blank" rel="noopener" href="' + url + '">Open this private result folder in Drive</a>'))
     if receipt['status'] == 'complete_and_verified':
         print('MP4 SHA256:', receipt['output_sha256'], '| bytes:', receipt['output_bytes'])
-        print('After GPU disconnect: choose CPU/None, reconnect, then run cell 3 to download the MP4.')
+        print('Download directly from Drive: open the result folder above, then evaluation/annotated_fast_lcd_speed_rpm.mp4 > Download. No CPU switch or runtime connection is needed.')
     else:
         print('The run failed. Partial diagnostics were saved; no completed video is claimed.')
 

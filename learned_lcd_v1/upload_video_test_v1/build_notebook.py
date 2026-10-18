@@ -1,4 +1,4 @@
-"""Build the three-cell CPU-upload / T4-inference / CPU-download notebook.
+"""Build CPU-upload / T4-inference cells and runtime-free Drive download instructions.
 
 Only writes JSON. It never mounts Drive, uploads a video or invokes a model.
 Publish runtime code first, then supply that immutable commit to this builder.
@@ -16,6 +16,21 @@ ROOT = Path(__file__).resolve().parent
 RUNTIME_FILES = ('colab_video_helpers.py', 'evaluate_uploaded_video.py',
                  'evaluate_lcd_speed_rpm_batched.py', 'benchmark_lcd_positioning.py')
 PUBLIC_DIRECTORY = 'learned_lcd_v1/upload_video_test_v1'
+
+DRIVE_DOWNLOAD_INSTRUCTIONS = '''### 3. Download the finished video directly from Google Drive
+
+**No cell to run, no CPU switch, and no runtime connection needed.**
+
+Wait until cell 2 prints **Drive backup verified**. Cell 2 already saves the labeled MP4, predictions and timings to Drive and verifies their hashes before automatic GPU disconnect. Changing or deleting the Colab runtime does not delete these saved Drive files.
+
+1. Use **Open this private result folder in Drive** in cell 2's output. If that output is unavailable, [find the browser_upload_v1 folder in Drive](https://drive.google.com/drive/search?q=browser_upload_v1).
+2. Use the same Google account as the training runs. Open `jobs` → your video's `video_...` folder → `runs` → the completed `run_...` folder → `evaluation`.
+3. Right-click **annotated_fast_lcd_speed_rpm.mp4** and choose **Download**.
+
+Full location: `My Drive/SpeedometerTraining/video_tests/browser_upload_v1/jobs/<job_id>/runs/<run_id>/evaluation/annotated_fast_lcd_speed_rpm.mp4`
+
+Download the completed run matching your uploaded video. A run ending in `_incomplete` is a failed partial run. If cell 2 is still processing, wait; a download step cannot finish the video. If you turned **AUTO_DISCONNECT** off, disconnect and delete the GPU runtime after **Drive backup verified** appears. The Drive download continues independently of Colab.
+'''
 
 
 def bootstrap(commit, repository, files, cpu_only):
@@ -103,18 +118,13 @@ def build(commit, repository, output):
         '# Large RPM label plus raw speed. Old-model readings remain unvalidated.\n'
         'AUTO_DISCONNECT = True #@param {type:"boolean"}\n'
         + guarded_gpu_action,
-        '#@title 3. Switch back to CPU, reconnect, and download the verified MP4\n'
-        '# Runtime > Change runtime type > None. The completed result is already in Drive.\n'
-        '# Leave this CPU runtime connected until your browser finishes downloading.\n'
-        + cpu_setup + '\n'
-        'receipt = helpers.download_latest_result()\n',
     ]
     introduction = (
         '# Upload a video and test the existing models\n\n'
-        '**Run the three cells individually:** CPU upload → T4 inference → CPU download. '
+        '**Run the two code cells individually:** CPU upload → T4 inference → download directly from Drive. '
         'Use the same Google Drive as the previous training runs; the pretrained assets must already exist there.\n\n'
         'The default processes the entire uploaded video. Cell 2 saves and verifies the output in private Drive, '
-        'then releases the GPU. Switch back to CPU before cell 3. If Drive preservation fails, the GPU stays connected '
+        'then releases the GPU. Step 3 opens Drive; no runtime switch or reconnection is needed. If Drive preservation fails, the GPU stays connected '
         'so you can save the remaining runtime files.\n\n'
         'This uses the existing LCD9, speed11 and RPM9 models with fast LCD-based RPM positioning. '
         '**No retraining; raw readings remain unvalidated.** The upright LCD corner assumption and unmasked speed '
@@ -125,16 +135,18 @@ def build(commit, repository, output):
         ast.parse(source, filename=f'cell_{index}')
         cells.append({'cell_type': 'code', 'execution_count': None, 'metadata': {'id': f'upload_video_step_{index}', 'cellView': 'form'},
                       'outputs': [], 'source': source.splitlines(keepends=True)})
+    cells.append({'cell_type': 'markdown', 'metadata': {'id': 'upload_video_step_3'},
+                  'source': DRIVE_DOWNLOAD_INSTRUCTIONS.splitlines(keepends=True)})
     document = {'nbformat': 4, 'nbformat_minor': 5,
                 'metadata': {'colab': {'name': output.name, 'provenance': []},
                              'kernelspec': {'display_name': 'Python 3', 'language': 'python', 'name': 'python3'},
                              'language_info': {'name': 'python'},
                              'runtime_release': {'repository': repository, 'code_commit': commit, 'files': files},
-                             'workflow': 'Run cells individually: CPU upload, T4 inference with verified Drive save and automatic unassign, CPU download.'},
+                             'workflow': 'Run two code cells individually: CPU upload, T4 inference with verified Drive save and automatic unassign. Download directly from Drive without a runtime.'},
                 'cells': cells}
     # Deliberately omit accelerator/GPU metadata: uploads start on CPU.
     output.write_text(json.dumps(document, indent=2, ensure_ascii=False) + '\n', encoding='utf8')
-    return {'path': str(output.resolve()), 'code_cells': 3, 'markdown_cells': 1, 'default_accelerator': None,
+    return {'path': str(output.resolve()), 'code_cells': 2, 'markdown_cells': 2, 'default_accelerator': None,
             'code_commit': commit, 'notebook_bytes': output.stat().st_size,
             'notebook_sha256': hashlib.sha256(output.read_bytes()).hexdigest(), 'runtime_files': files}
 
