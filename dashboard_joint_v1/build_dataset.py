@@ -87,6 +87,83 @@ def photometric(img,rng,variant):
     if ok: out=cv2.imdecode(buf,cv2.IMREAD_GRAYSCALE)
     return out, {'gamma':gamma,'gain':gain,'noise_sigma':sigma,'soft_glare':glare,'blur':blur,'jpeg_quality':quality}
 
+
+APPEARANCE_GUARD = {'patch_radius':7, 'clipped_low':5, 'clipped_high':250,
+                    'minimum_clipped_fraction':.50, 'minimum_clipped_increase':.25,
+                    'minimum_original_contrast':20., 'minimum_contrast_fraction':.35,
+                    'contrast_percentiles':[10,90], 'contrast_smoothing':'Gaussian 3x3 sigma=0',
+                    'needle_line_fractions':[.2,.4,.6,.8]}
+
+
+def appearance_evidence_guard(before, candidate, points, visible, task):
+    """Reject newly destroyed supervised evidence, keeping original real glare.
+
+    CPU-only deterministic heuristic, not a visibility detector. Compare the
+    same geometrically warped pixels before/after appearance augmentation.
+    Unknown/invisible points do not participate; localizer virtual RPM crop
+    corners are not physical marks. Mild noise must not masquerade as structural
+    contrast, so contrast is measured after a 3x3 Gaussian blur. No RNG draws.
+    """
+    if before.shape != candidate.shape or before.ndim != 2:
+        raise ValueError('Appearance guard requires equal grayscale image shapes')
+    points=np.asarray(points,float);visible=np.asarray(visible,bool)
+    if points.shape != (len(visible),2):
+        raise ValueError('Appearance guard point/visibility shape mismatch')
+    if task not in SIZES: raise ValueError('Unknown appearance guard task')
+    centers=[(f'point_{i}',p) for i,p in enumerate(points)
+             if visible[i] and (task!='localizer' or i<4)]
+    if task=='speed' and len(visible)>=2 and visible[:2].all():
+        centers.extend((f'needle_{f:.1f}',points[0]*(1-f)+points[1]*f)
+                       for f in APPEARANCE_GUARD['needle_line_fractions'])
+    smooth_before=cv2.GaussianBlur(before,(3,3),0)
+    smooth_after=cv2.GaussianBlur(candidate,(3,3),0)
+    h,w=before.shape;radius=APPEARANCE_GUARD['patch_radius'];failures=[];checked=0
+    for name,p in centers:
+        if not np.isfinite(p).all():continue
+        x,y=np.round(p).astype(int)
+        if not (0<=x<w and 0<=y<h):continue
+        ys=slice(max(0,y-radius),min(h,y+radius+1));xs=slice(max(0,x-radius),min(w,x+radius+1))
+        a=before[ys,xs];b=candidate[ys,xs]
+        if a.size<25:continue
+        checked+=1
+        clipped_before=float(((a<=5)|(a>=250)).mean())
+        clipped_after=float(((b<=5)|(b>=250)).mean())
+        low,high=APPEARANCE_GUARD['contrast_percentiles']
+        contrast_before=float(np.percentile(smooth_before[ys,xs],high)-np.percentile(smooth_before[ys,xs],low))
+        contrast_after=float(np.percentile(smooth_after[ys,xs],high)-np.percentile(smooth_after[ys,xs],low))
+        reasons=[]
+        if (clipped_after>=APPEARANCE_GUARD['minimum_clipped_fraction'] and
+                clipped_after-clipped_before>=APPEARANCE_GUARD['minimum_clipped_increase']):
+            reasons.append('new_clipping')
+        if (contrast_before>=APPEARANCE_GUARD['minimum_original_contrast'] and
+                contrast_after<contrast_before*APPEARANCE_GUARD['minimum_contrast_fraction']):
+            reasons.append('structural_contrast_collapse')
+        if reasons:
+            failures.append({'sample':name,'reasons':reasons,
+                             'clipped_before':clipped_before,'clipped_after':clipped_after,
+                             'contrast_before':contrast_before,'contrast_after':contrast_after})
+    metadata={'checked_patches':checked,'fallback_to_preappearance':bool(failures),'failures':failures}
+    return (before.copy() if failures else candidate),metadata
+
+
+def photometric_for_sample(before,rng,variant,*,split,task,points,visible,enabled=False):
+    """Generate once using historical RNG sequence; guard opt-in TRAIN only."""
+    candidate,appearance=photometric(before,rng,variant)
+    if not enabled or split!='train' or appearance.get('identity'):
+        return candidate,appearance
+    result,guard=appearance_evidence_guard(before,candidate,points,visible,task)
+    if guard['fallback_to_preappearance']:
+        guard['rejected_appearance']=appearance
+        return result,{'identity':True,'evidence_guard':guard}
+    return result,{**appearance,'evidence_guard':guard}
+
+
+def record_appearance_guard(counts,task,appearance,prefix='real'):
+    guard=appearance.get('evidence_guard')
+    if guard is None:return
+    counts[f'{prefix}_{task}_checked']+=1
+    counts[f'{prefix}_{task}_fallback']+=int(guard['fallback_to_preappearance'])
+
 def reviewed_rpm_roi(row):
     explicit=row.get('rpm_roi_corners')
     if explicit is None: return None
@@ -196,7 +273,9 @@ def rpm_context_retained(protected,matrix):
                 (mapped<=np.asarray(SIZES['rpm'])-1).all())
 
 def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_rpm_count=0,
-                 rpm_train_corner_jitter_fraction=None):
+                 rpm_train_corner_jitter_fraction=None,train_appearance_guard=False):
+    if not isinstance(train_appearance_guard,bool):
+        raise ValueError('Training appearance guard must be a boolean')
     if rpm_train_corner_jitter_fraction is not None and (
             isinstance(rpm_train_corner_jitter_fraction,bool) or
             not isinstance(rpm_train_corner_jitter_fraction,(int,float)) or
@@ -218,7 +297,7 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
     for row in annotations:
         if row.get('annotation_status','reviewed')!='reviewed':
             raise ValueError('Unreviewed annotation proposal cannot enter training: '+row['id'])
-    samples={t:[] for t in SIZES}; skipped=[]; coverage=[];rpm_jitter_counts=Counter()
+    samples={t:[] for t in SIZES}; skipped=[]; coverage=[];rpm_jitter_counts=Counter();appearance_guard_counts=Counter()
     output.mkdir(parents=True)
     for task in SIZES:
         (output/task/'images').mkdir(parents=True)
@@ -271,14 +350,16 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
                     geo['rpm_detector_corner_jitter']=rpm_jitter
                     rpm_jitter_counts['exported_variants']+=1
                 out,mask=warp_input(image,matrix,task,lcd)
-                out,photo=photometric(out,rng,variant)
-                if task=='speed': out[mask>0]=128
                 pts,vis=map_labels(points,visible,matrix,size)
                 if task=='speed':
                     for idx in np.where(vis)[0]:
                         x,y=np.round(pts[idx]).astype(int)
                         if mask[y,x]>0:
                             vis[idx]=False;pts[idx]=0
+                out,photo=photometric_for_sample(out,rng,variant,split=split,task=task,points=pts,
+                                                visible=vis,enabled=train_appearance_guard)
+                record_appearance_guard(appearance_guard_counts,task,photo)
+                if task=='speed': out[mask>0]=128
                 if task=='rpm' and sum(vis)<sum(visible): continue
                 if task=='speed' and sum(vis)<3: continue
                 item={'id':ident,'source_id':row['id'],'split':split,'image':f'images/{ident}.png',
@@ -337,7 +418,9 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
             if int(sum(vis))!=sum(example['visible']):continue
             image=cv2.warpPerspective(example['image'],matrix,SIZES['rpm'],borderValue=128)
             image=cv2.GaussianBlur(image,(3,3),.65) # soften perfectly regular rendered LCD stripes
-            image,appearance=photometric(image,rng,index)
+            image,appearance=photometric_for_sample(image,rng,index,split='train',task='rpm',points=pts,
+                                                    visible=vis,enabled=train_appearance_guard)
+            record_appearance_guard(appearance_guard_counts,'rpm',appearance,prefix='synthetic')
             row={k:v for k,v in example.items() if k not in ('image','points','visible','canonical_fill_mask')}
             row.update(id=ident,image=f'images/{ident}.png',width=256,height=384,points=pts.tolist(),visible=vis.tolist(),visibility_known=[True]*len(vis),
                        lighting='night',state='synthetic_display',source_time_seconds=meta['time_seconds'],
@@ -350,6 +433,9 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
               'split_policy':'Time-block development splits within two recordings. All descendants stay with source. Not unseen-recording evaluation.',
               'source_count':len(annotations),'synthetic_rpm_examples':sum(bool(r.get('synthetic')) for r in samples['rpm']),
               'augmentation_config':{'rpm_train_corner_jitter_fraction':rpm_train_corner_jitter_fraction,
+                                     'train_appearance_guard':train_appearance_guard,
+                                     'appearance_guard_scope':'TRAIN nonidentity appearance only; real supervised physical landmarks and needle line, plus synthetic RPM. Original real glare, geometry, visibility labels, validation/test, and RNG draws unchanged.',
+                                     'appearance_guard_thresholds':APPEARANCE_GUARD if train_appearance_guard else None,
                                      'rpm_corner_jitter_scope':'Only real-source train variants >0; validation/test and procedural renderer unchanged.',
                                      'rpm_corner_jitter_default':'Historical 0.007 times supplied quad top edge; optional setting uses learned ROI corners.'},
               'synthetic_speed_positions':False,'tasks':{},'files':[]}
@@ -366,6 +452,8 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
     write(output/'provenance'/'annotations.json',{'sources':annotations})
     write(output/'provenance'/'source_inventory.json',{'sources':inventory})
     write(output/'qa.json',{'skipped':skipped,'rpm_crop_coverage':coverage,
+                          'training_appearance_guard':{'enabled':train_appearance_guard,'counts':dict(appearance_guard_counts),
+                                                       'thresholds':APPEARANCE_GUARD if train_appearance_guard else None},
                           'rpm_training_corner_jitter':{'configured_fraction':rpm_train_corner_jitter_fraction,
                                                        'counts':dict(rpm_jitter_counts)},
                           'status':'requires visual inspection before upload'})
@@ -388,7 +476,9 @@ if __name__=='__main__':
     p.add_argument('--synthetic-rpm-count',type=int,default=0)
     p.add_argument('--rpm-train-corner-jitter-fraction',type=float,default=None,
                    help='Opt in to bounded TRAIN-only learned ROI corner noise, e.g. 0.025; default preserves existing images')
+    p.add_argument('--train-appearance-guard',action='store_true',
+                   help='Opt in to TRAIN-only fallback when appearance augmentation destroys supervised landmark evidence')
     p.add_argument('--zip',action='store_true');a=p.parse_args()
-    m=make_dataset(a.sources,a.output,a.train_variants,a.val_variants,a.synthetic_rpm_count,a.rpm_train_corner_jitter_fraction)
+    m=make_dataset(a.sources,a.output,a.train_variants,a.val_variants,a.synthetic_rpm_count,a.rpm_train_corner_jitter_fraction,a.train_appearance_guard)
     print(json.dumps({k:v['counts'] for k,v in m['tasks'].items()}))
     if a.zip:print(json.dumps(package(a.output)))
