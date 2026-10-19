@@ -138,6 +138,29 @@ class WorkflowTests(unittest.TestCase):
     def prepared(self, root):
         return {'workdir': str(root), 'dataset_root': str(root / 'dummy_dataset'), 'drive_root_id': 'root'}
 
+    def test_best_restore_can_select_baseline_zero_and_latest_restores_baseline_report(self):
+        store = FakeStore()
+        folder = store.ensure_folder('speed', 'run')['id']
+        attempt = '20261019T120000_000001'
+        dest = store.ensure_folder('attempt_' + attempt, folder)['id']
+        baseline = {'selection_score': .5, 'unchanged_weights': True}
+        for epoch in (0, 1):
+            checkpoint = store._put(f'fake-model-epoch-{epoch}'.encode(), dest, f'epoch_{epoch:04d}.pt')
+            initial = store._put(json.dumps(baseline).encode(), dest,
+                                 f'epoch_{epoch:04d}_epoch_initial_validation.json')
+            receipt = {'task': 'speed', 'attempt': attempt, 'phase': 'epoch', 'checkpoint': checkpoint,
+                       'metadata': {'epoch': epoch, 'best_epoch': 0, 'best_score': .5,
+                                    'is_best': epoch == 0, 'identity': {'task': 'speed'}},
+                       'artifacts': [dict(initial, local_name='initial_validation.json')]}
+            store.upload_json(receipt, dest, f'epoch_{epoch:04d}_epoch_receipt.json')
+        with tempfile.TemporaryDirectory() as temporary, load_workflow([]) as workflow:
+            best = workflow._restore(store, folder, Path(temporary) / 'best', 'best', 'speed')
+            latest = workflow._restore(store, folder, Path(temporary) / 'latest', 'latest', 'speed')
+            self.assertEqual(Path(best).name, 'epoch_0000.pt')
+            self.assertEqual(Path(best).read_bytes(), b'fake-model-epoch-0')
+            self.assertEqual(Path(latest).name, 'epoch_0001.pt')
+            self.assertEqual(json.loads(Path(latest).with_name('initial_validation.json').read_text()), baseline)
+
     def test_setup_auth_failure_releases_gpu_without_training(self):
         events, store = [], FakeStore()
         store.fail_folder = True

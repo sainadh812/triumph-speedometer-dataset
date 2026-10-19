@@ -28,14 +28,14 @@ try:
     from .dataset import TaskDataset, validate_dataset, sha256, PREPROCESSING_ID
     from .metrics import MetricAccumulator, heatmap_to_points
     from .model import InstrumentModel, require_colab_cuda, training_loss, ARCHITECTURE_ID
-    from .state import CHECKPOINT_KIND, FORMAT_VERSION, identity_digest, validate_checkpoint, should_stop, RESUME_MODES
+    from .state import CHECKPOINT_KIND, FORMAT_VERSION, identity_digest, validate_checkpoint, should_stop, RESUME_MODES, selected_validation
     from .sampling import training_sampling_plan, batch_lighting_groups
     from .initialization import load_initialization
 except ImportError:
     from dataset import TaskDataset, validate_dataset, sha256, PREPROCESSING_ID
     from metrics import MetricAccumulator, heatmap_to_points
     from model import InstrumentModel, require_colab_cuda, training_loss, ARCHITECTURE_ID
-    from state import CHECKPOINT_KIND, FORMAT_VERSION, identity_digest, validate_checkpoint, should_stop, RESUME_MODES
+    from state import CHECKPOINT_KIND, FORMAT_VERSION, identity_digest, validate_checkpoint, should_stop, RESUME_MODES, selected_validation
     from sampling import training_sampling_plan, batch_lighting_groups
     from initialization import load_initialization
 
@@ -484,6 +484,9 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
         best_epoch, best_score = payload['best_epoch'], payload['best_score']
         waiting, start_epoch = payload['epochs_without_improvement'], payload['epoch'] + 1
         initialization, training_complete = payload['initialization'], payload['training_complete']
+        if initialization.get('baseline_eligible_for_selection') is True:
+            write_json(directory / 'initial_validation.json',
+                       initialization['validation_before_finetuning'])
         for split, state in payload['loader_generator_states'].items():
             generators[split].set_state(state)
         _restore_rng(payload['rng_state'])
@@ -493,13 +496,57 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
         # even when the previous run used a different loss aggregation policy.
         baseline = evaluate(model, loaders['val'], device, config, identity['point_names'])
         initialization['validation_before_finetuning'] = baseline
+        initialization['baseline_eligible_for_selection'] = True
+        initialization['selection_policy'] = 'Minimum validation loss across unchanged starting weights (epoch 0) and trained epochs; test never selects weights.'
+        best_score = selected_validation(history, initialization, 0)['selection_score']
+        best_state = _cpu_state(model)
         write_json(directory / 'initial_validation.json', baseline)
         emit({'event': 'initial_weights_validation', 'task': task, 'validation': baseline,
-              'training_updates': 0, 'test_set_used': False}, progress_callback)
+              'training_updates': 0, 'test_set_used': False, 'eligible_for_best': True}, progress_callback)
     emit({'event': 'task_start', 'task': task, 'input_hw': identity['input_hw'],
           'counts': validated['tasks'][task]['counts'], 'resume': resume, 'next_epoch': start_epoch,
           'batch_size': config.batch_size, 'amp': config.amp, 'training_sampling': sampling_plan}, progress_callback)
     last_checkpoint = resume_path
+
+    def persist_epoch(epoch, improved):
+        """Save matching current model/optimizer state; best weights stay separate."""
+        checkpoint = directory / f'epoch_{epoch:04d}.pt'
+        if checkpoint.exists():
+            raise FileExistsError('Refusing to overwrite an epoch; use a new output directory when branching from best')
+        state = {'checkpoint_kind': CHECKPOINT_KIND, 'format_version': FORMAT_VERSION,
+                 'identity': identity, 'identity_sha256': identity_digest(identity), 'config': config_dict,
+                 'epoch': epoch, 'model_state_dict': _cpu_state(model), 'optimizer_state_dict': optimizer.state_dict(),
+                 'scheduler_state_dict': scheduler.state_dict(), 'scaler_state_dict': scaler.state_dict(),
+                 'rng_state': _rng_state(), 'loader_generator_states': {key: gen.get_state() for key, gen in generators.items()},
+                 'history': history, 'best_state_dict': best_state, 'best_epoch': best_epoch, 'best_score': best_score,
+                 'epochs_without_improvement': waiting, 'training_complete': training_complete,
+                 'initialization': initialization}
+        validate_checkpoint(state, identity, config_dict)
+        save_torch(checkpoint, state)
+        pointer = {'filename': checkpoint.name, 'sha256': sha256(checkpoint), 'epoch': epoch,
+                   'identity_sha256': identity_digest(identity)}
+        write_json(directory / 'latest.json', pointer)
+        if improved:
+            write_json(directory / 'best.json', pointer)
+        write_json(directory / 'history.json', history)
+        metadata = {'phase': 'epoch', 'epoch': epoch, 'best_epoch': best_epoch, 'best_score': best_score,
+                    'is_best': improved, 'training_complete': training_complete, 'identity': identity,
+                    'selection_origin': 'initialization' if best_epoch == 0 else 'trained_epoch',
+                    'artifact_paths': [str(checkpoint), str(checkpoint) + '.sha256.json',
+                                       str(directory / 'latest.json'), str(directory / 'history.json')]}
+        for filename in ('best.json', 'initial_validation.json'):
+            if (directory / filename).exists():
+                metadata['artifact_paths'].append(str(directory / filename))
+        if checkpoint_callback:
+            checkpoint_callback(task, checkpoint, metadata)
+        return checkpoint
+
+    if payload is None and transfer_provenance is not None:
+        # Persist/upload the baseline before any optimizer step. A best restart
+        # from epoch 0 restores fresh optimizer/scheduler/RNG, not later moments.
+        last_checkpoint = persist_epoch(0, True)
+        emit({'event': 'baseline_saved', 'task': task, 'epoch': 0, 'best_epoch': 0,
+              'validation_loss': best_score, 'checkpoint': str(last_checkpoint)}, progress_callback)
     for epoch in range(start_epoch, config.epochs + 1) if not training_complete else ():
         epoch_started = time.perf_counter()
         _configure_train(model, epoch, config)
@@ -539,35 +586,9 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
                   'training_sampled_lighting': sampled_lighting,
                   'next_learning_rates': [group['lr'] for group in optimizer.param_groups]}
         history.append(record)
-        last_checkpoint = directory / f'epoch_{epoch:04d}.pt'
-        if last_checkpoint.exists():
-            raise FileExistsError('Refusing to overwrite an epoch; use a new output directory when branching from best')
-        state = {'checkpoint_kind': CHECKPOINT_KIND, 'format_version': FORMAT_VERSION,
-                 'identity': identity, 'identity_sha256': identity_digest(identity), 'config': config_dict,
-                 'epoch': epoch, 'model_state_dict': _cpu_state(model), 'optimizer_state_dict': optimizer.state_dict(),
-                 'scheduler_state_dict': scheduler.state_dict(), 'scaler_state_dict': scaler.state_dict(),
-                 'rng_state': _rng_state(), 'loader_generator_states': {key: gen.get_state() for key, gen in generators.items()},
-                 'history': history, 'best_state_dict': best_state, 'best_epoch': best_epoch, 'best_score': best_score,
-                 'epochs_without_improvement': waiting, 'training_complete': training_complete,
-                 'initialization': initialization}
-        save_torch(last_checkpoint, state)
-        pointer = {'filename': last_checkpoint.name, 'sha256': sha256(last_checkpoint), 'epoch': epoch,
-                   'identity_sha256': identity_digest(identity)}
-        write_json(directory / 'latest.json', pointer)
-        if improved:
-            write_json(directory / 'best.json', pointer)
-        write_json(directory / 'history.json', history)
-        metadata = {'phase': 'epoch', 'epoch': epoch, 'best_epoch': best_epoch, 'best_score': best_score,
-                    'is_best': improved, 'training_complete': training_complete, 'identity': identity,
-                    'artifact_paths': [str(last_checkpoint), str(last_checkpoint) + '.sha256.json',
-                                       str(directory / 'latest.json'), str(directory / 'history.json')]}
-        if (directory / 'best.json').exists():
-            metadata['artifact_paths'].append(str(directory / 'best.json'))
-        if checkpoint_callback:
-            checkpoint_callback(task, last_checkpoint, metadata)
+        last_checkpoint = persist_epoch(epoch, improved)
         emit({'event': 'epoch_saved', 'task': task, 'epoch': epoch, 'validation_loss': score,
               'best_epoch': best_epoch, 'checkpoint': str(last_checkpoint), 'training_complete': training_complete}, progress_callback)
-        del state
         if training_complete:
             break
     if best_state is None or last_checkpoint is None:
@@ -586,10 +607,12 @@ def train_task(task, dataset_root, output_root, config=None, resume='fresh', res
     weights_path = directory / 'best_model.pt'
     save_torch(weights_path, {'checkpoint_kind': 'dashboard_joint_v1_inference', 'format_version': 1,
                               'identity': identity, 'model_state_dict': best_state, 'best_epoch': best_epoch,
-                              'validation_selection_score': best_score, 'initialization': initialization})
+                              'validation_selection_score': best_score, 'initialization': initialization,
+                              'selection_origin': 'initialization' if best_epoch == 0 else 'trained_epoch'})
     result = {'status': 'complete', 'task': task, 'identity': identity, 'config': config_dict,
               'best_epoch': best_epoch, 'epochs_completed': history[-1]['epoch'],
-              'best_validation': history[best_epoch - 1]['validation'], 'test_once': test,
+              'best_validation': selected_validation(history, initialization, best_epoch), 'test_once': test,
+              'selection_origin': 'initialization' if best_epoch == 0 else 'trained_epoch',
               'last_checkpoint': str(last_checkpoint), 'best_model': str(weights_path), 'report': str(completed),
               'metric_scope': 'Development time-block split; no unseen-recording, speed-kmh, or physical-RPM accuracy claim.',
               'initialization': initialization, 'training_location': 'Google Colab CUDA',

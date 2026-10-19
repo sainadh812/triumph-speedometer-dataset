@@ -67,9 +67,14 @@ def validate_initialization_payload(payload, target_identity, source_sha256, sou
             type(source_size) is not int or source_size <= 0):
         raise ValueError('Initialization file provenance is invalid')
     epoch, score = payload.get('best_epoch'), payload.get('validation_selection_score')
-    if (type(epoch) is not int or epoch < 1 or isinstance(score, bool) or
+    if (type(epoch) is not int or epoch < 0 or isinstance(score, bool) or
             not isinstance(score, (int, float)) or not math.isfinite(score)):
         raise ValueError('Selected source epoch/validation provenance is invalid')
+    if epoch == 0:
+        baseline = payload.get('initialization', {})
+        if (baseline.get('baseline_eligible_for_selection') is not True or
+                baseline.get('validation_before_finetuning', {}).get('selection_score') != score):
+            raise ValueError('Selected source epoch zero lacks an eligible validated initialization')
     state = payload.get('model_state_dict')
     if not isinstance(state, Mapping) or not state or any(not isinstance(key, str) for key in state):
         raise ValueError('Initialization lacks a model state dictionary')
@@ -77,6 +82,7 @@ def validate_initialization_payload(payload, target_identity, source_sha256, sou
         'mode': 'weights_only_transfer_new_experiment', 'old_task_heads_loaded': True,
         'source_weights_sha256': source_sha256, 'source_weights_size': source_size,
         'source_best_epoch': epoch, 'source_validation_selection_score': score,
+        'source_selection_origin': 'initialization' if epoch == 0 else 'trained_epoch',
         'source_identity': copy.deepcopy(source),
         'target_dataset_manifest_sha256': target_identity['dataset_manifest_sha256'],
         'target_samples_sha256': target_identity['samples_sha256'],

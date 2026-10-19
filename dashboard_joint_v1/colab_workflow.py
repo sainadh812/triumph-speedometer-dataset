@@ -272,7 +272,7 @@ def _restore(store, task_folder, target, mode, task=None):
         return str(checkpoint)
     prefix = f'epoch_{epoch:04d}_{chosen["phase"]}_'
     allowed = {'report.json', 'test_once.json', 'best_model.pt', 'best_model.pt.sha256.json', 'history.json',
-               'latest.json', 'best.json', checkpoint_name + '.sha256.json'}
+               'latest.json', 'best.json', 'initial_validation.json', checkpoint_name + '.sha256.json'}
     downloaded = set()
     for ref in chosen.get('artifacts', []):
         name = ref.get('local_name') or (ref['name'][len(prefix):] if ref['name'].startswith(prefix) else '')

@@ -3,10 +3,32 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 
 CHECKPOINT_KIND = 'dashboard_joint_v1_epoch_full_state'
 FORMAT_VERSION = 1
 RESUME_MODES = ('fresh', 'latest', 'best')
+
+
+def selected_validation(history, initialization, best_epoch):
+    """Epoch zero is the unchanged transferred model, never a trained epoch."""
+    if type(best_epoch) is not int or best_epoch < 0:
+        raise ValueError('Invalid selected epoch')
+    if best_epoch == 0:
+        if initialization.get('baseline_eligible_for_selection') is not True:
+            raise ValueError('Epoch zero requires an eligible initialization baseline')
+        result = initialization.get('validation_before_finetuning')
+    else:
+        matches = [row for row in history if row.get('epoch') == best_epoch]
+        if len(matches) != 1:
+            raise ValueError('Selected epoch is absent or ambiguous in training history')
+        result = matches[0].get('validation')
+    if not isinstance(result, dict):
+        raise ValueError('Selected validation metrics are missing')
+    score = result.get('selection_score')
+    if isinstance(score, bool) or not isinstance(score, (int, float)) or not math.isfinite(score):
+        raise ValueError('Selected validation score must be finite')
+    return result
 
 
 def identity_digest(identity):
@@ -27,10 +49,16 @@ def validate_checkpoint(payload, expected_identity, expected_config):
     if payload['config'] != expected_config:
         raise ValueError('Training configuration changed; exact optimizer resume is not permitted')
     epoch = payload['epoch']
-    if not isinstance(epoch, int) or epoch < 1 or [row['epoch'] for row in payload['history']] != list(range(1, epoch + 1)):
+    if type(epoch) is not int or epoch < 0 or [row['epoch'] for row in payload['history']] != list(range(1, epoch + 1)):
         raise ValueError('Checkpoint epoch/history is incomplete')
-    if not 1 <= payload['best_epoch'] <= epoch or not payload['best_state_dict']:
+    if type(payload['best_epoch']) is not int or not 0 <= payload['best_epoch'] <= epoch or not payload['best_state_dict']:
         raise ValueError('Checkpoint best weights are missing')
+    if payload['best_epoch'] == 0:
+        baseline = selected_validation(payload['history'], payload['initialization'], 0)
+        if baseline['selection_score'] != payload['best_score']:
+            raise ValueError('Selected baseline score differs from saved validation')
+    if epoch == 0 and (payload['training_complete'] or payload['epochs_without_improvement'] != 0):
+        raise ValueError('Epoch zero must precede every optimizer update and stopping decision')
     if set(payload['loader_generator_states']) != {'train', 'val', 'test'}:
         raise ValueError('Loader generator state is incomplete')
     if not {'python', 'numpy', 'torch_cpu', 'torch_cuda'}.issubset(payload['rng_state']):

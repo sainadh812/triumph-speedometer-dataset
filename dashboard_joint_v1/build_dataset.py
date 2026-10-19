@@ -10,6 +10,7 @@ from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 from pathlib import Path
 import zipfile
 
@@ -147,7 +148,56 @@ def annotation_points(row,task,source_shape=None):
 def seed_for(name):
     return int(hashlib.sha256(name.encode()).hexdigest()[:16],16)
 
-def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_rpm_count=0):
+def rpm_training_crop(corners,crop_matrix,points,visible,rng,jitter_fraction,context_margin=4.,max_attempts=12):
+    """Simulate learned ROI corner error while retaining reviewed scale context.
+
+    Called only for opted-in, nonbaseline TRAIN variants. Older LCD-based
+    geometry is converted to the same semantic ROI used by inference first.
+    The guard protects all visible landmarks and their canonical bounding box
+    with a small margin; unknown/unreviewed content is not inferred as a label.
+    """
+    if (isinstance(jitter_fraction,bool) or not isinstance(jitter_fraction,(int,float)) or
+            not math.isfinite(jitter_fraction) or not 0<=jitter_fraction<=.05):
+        raise ValueError('RPM training corner jitter must be a fraction between 0 and 0.05')
+    corners=np.asarray(corners,np.float32)
+    baseline=crop_matrix(corners)
+    roi=corners if crop_matrix is rpm_from_roi_matrix else rpm_roi_corners(corners)
+    width=float(np.linalg.norm(roi[1]-roi[0]))
+    mapped,vis=map_labels(points,visible,baseline,SIZES['rpm'])
+    if int(sum(vis))!=sum(visible) or not any(vis):
+        raise ValueError('Baseline RPM crop must retain all reviewed visible landmarks')
+    lo=np.maximum(mapped[vis].min(0)-context_margin,[0,0])
+    hi=np.minimum(mapped[vis].max(0)+context_margin,np.asarray(SIZES['rpm'])-1)
+    protected=project([lo,[hi[0],lo[1]],hi,[lo[0],hi[1]]],np.linalg.inv(baseline))
+    metadata={'mode':'train_only_learned_roi_error','sigma_fraction_of_roi_top_edge':float(jitter_fraction),
+              'maximum_abs_fraction_per_axis':2*float(jitter_fraction),'roi_top_edge_source_pixels':width,
+              'protected_context_margin_model_pixels':float(context_margin),'attempts':0,'fallback_to_baseline':True,
+              'corner_offsets_source_pixels':[[0.,0.]]*4}
+    for attempt in range(1,max_attempts+1):
+        offsets=np.clip(rng.normal(0,jitter_fraction,(4,2)),-2*jitter_fraction,2*jitter_fraction)*width
+        proposal=(roi+offsets).astype(np.float32)
+        metadata['attempts']=attempt
+        if not cv2.isContourConvex(proposal) or abs(cv2.contourArea(proposal))<20:
+            continue
+        candidate=rpm_from_roi_matrix(proposal)
+        if rpm_context_retained(protected,candidate):
+            metadata.update(fallback_to_baseline=False,corner_offsets_source_pixels=offsets.tolist())
+            return candidate,protected,metadata
+    return baseline,protected,metadata
+
+def rpm_context_retained(protected,matrix):
+    mapped=project(protected,matrix)
+    return bool(np.isfinite(mapped).all() and (mapped>=0).all() and
+                (mapped<=np.asarray(SIZES['rpm'])-1).all())
+
+def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_rpm_count=0,
+                 rpm_train_corner_jitter_fraction=None):
+    if rpm_train_corner_jitter_fraction is not None and (
+            isinstance(rpm_train_corner_jitter_fraction,bool) or
+            not isinstance(rpm_train_corner_jitter_fraction,(int,float)) or
+            not math.isfinite(rpm_train_corner_jitter_fraction) or
+            not 0<=rpm_train_corner_jitter_fraction<=.05):
+        raise ValueError('RPM training corner jitter must be None or a fraction between 0 and 0.05')
     source_root,output=Path(source_root),Path(output)
     if output.exists():
         raise FileExistsError('Choose a new output folder; existing datasets are immutable.')
@@ -163,7 +213,7 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
     for row in annotations:
         if row.get('annotation_status','reviewed')!='reviewed':
             raise ValueError('Unreviewed annotation proposal cannot enter training: '+row['id'])
-    samples={t:[] for t in SIZES}; skipped=[]; coverage=[]
+    samples={t:[] for t in SIZES}; skipped=[]; coverage=[];rpm_jitter_counts=Counter()
     output.mkdir(parents=True)
     for task in SIZES:
         (output/task/'images').mkdir(parents=True)
@@ -192,14 +242,29 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
                                  'min_xy':mapped[mappedvis].min(0).tolist(),'max_xy':mapped[mappedvis].max(0).tolist()})
             for variant in range(variants):
                 ident=f'{row["id"]}_{task}_{variant:03d}'; rng=np.random.default_rng(seed_for(ident))
+                rpm_jitter=None;protected=None
                 if task=='localizer': base=letterbox_matrix([0,0,w,h],size)
                 elif task=='speed':
                     jitter=(0,0,1) if variant==0 else (*rng.uniform(-.025,.025,2),float(rng.uniform(.96,1.08)))
                     base=dashboard_matrix(polygon,image.shape,jitter=jitter)
                 else:
-                    perturb=None if variant==0 else rng.normal(0,.007,(4,2))*np.linalg.norm(np.asarray(corners)[1]-np.asarray(corners)[0])
-                    base=crop_matrix(corners if perturb is None else corners+perturb)
+                    if split=='train' and variant>0 and rpm_train_corner_jitter_fraction is not None:
+                        base,protected,rpm_jitter=rpm_training_crop(corners,crop_matrix,points,visible,rng,
+                                                                  rpm_train_corner_jitter_fraction)
+                        rpm_jitter_counts['candidate_variants']+=1
+                        rpm_jitter_counts['fallback_to_baseline']+=int(rpm_jitter['fallback_to_baseline'])
+                    else:
+                        # Preserve historical RNG draws and pixels for every
+                        # validation/test row and for the default builder path.
+                        perturb=None if variant==0 else rng.normal(0,.007,(4,2))*np.linalg.norm(np.asarray(corners)[1]-np.asarray(corners)[0])
+                        base=crop_matrix(corners if perturb is None else corners+perturb)
                 aug,geo=augment_geometry(rng,size,task,variant); matrix=aug@base
+                if protected is not None:
+                    if not rpm_context_retained(protected,matrix):
+                        rpm_jitter_counts['skipped_after_final_geometry']+=1
+                        continue
+                    geo['rpm_detector_corner_jitter']=rpm_jitter
+                    rpm_jitter_counts['exported_variants']+=1
                 out,mask=warp_input(image,matrix,task,lcd)
                 out,photo=photometric(out,rng,variant)
                 if task=='speed': out[mask>0]=128
@@ -279,6 +344,9 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
               'description':'Reviewed real states with deterministic augmentation; additional RPM bar renders explicitly marked synthetic, not physical measurements.',
               'split_policy':'Time-block development splits within two recordings. All descendants stay with source. Not unseen-recording evaluation.',
               'source_count':len(annotations),'synthetic_rpm_examples':sum(bool(r.get('synthetic')) for r in samples['rpm']),
+              'augmentation_config':{'rpm_train_corner_jitter_fraction':rpm_train_corner_jitter_fraction,
+                                     'rpm_corner_jitter_scope':'Only real-source train variants >0; validation/test and procedural renderer unchanged.',
+                                     'rpm_corner_jitter_default':'Historical 0.007 times supplied quad top edge; optional setting uses learned ROI corners.'},
               'synthetic_speed_positions':False,'tasks':{},'files':[]}
     for task,rows in samples.items():
         counts=dict(Counter(x['split'] for x in rows))
@@ -292,7 +360,10 @@ def make_dataset(source_root,output,train_variants=48,val_variants=4,synthetic_r
     # Private provenance stays in private archive. Exclude the raw videos.
     write(output/'provenance'/'annotations.json',{'sources':annotations})
     write(output/'provenance'/'source_inventory.json',{'sources':inventory})
-    write(output/'qa.json',{'skipped':skipped,'rpm_crop_coverage':coverage,'status':'requires visual inspection before upload'})
+    write(output/'qa.json',{'skipped':skipped,'rpm_crop_coverage':coverage,
+                          'rpm_training_corner_jitter':{'configured_fraction':rpm_train_corner_jitter_fraction,
+                                                       'counts':dict(rpm_jitter_counts)},
+                          'status':'requires visual inspection before upload'})
     for path in sorted(output.rglob('*')):
         if path.is_file():manifest['files'].append({'path':path.relative_to(output).as_posix(),'sha256':digest(path),'size':path.stat().st_size})
     write(output/'dataset_manifest.json',manifest)
@@ -310,7 +381,9 @@ if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--sources',required=True);p.add_argument('--output',required=True)
     p.add_argument('--train-variants',type=int,default=48);p.add_argument('--val-variants',type=int,default=4)
     p.add_argument('--synthetic-rpm-count',type=int,default=0)
+    p.add_argument('--rpm-train-corner-jitter-fraction',type=float,default=None,
+                   help='Opt in to bounded TRAIN-only learned ROI corner noise, e.g. 0.025; default preserves existing images')
     p.add_argument('--zip',action='store_true');a=p.parse_args()
-    m=make_dataset(a.sources,a.output,a.train_variants,a.val_variants,a.synthetic_rpm_count)
+    m=make_dataset(a.sources,a.output,a.train_variants,a.val_variants,a.synthetic_rpm_count,a.rpm_train_corner_jitter_fraction)
     print(json.dumps({k:v['counts'] for k,v in m['tasks'].items()}))
     if a.zip:print(json.dumps(package(a.output)))

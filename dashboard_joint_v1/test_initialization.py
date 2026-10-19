@@ -103,6 +103,19 @@ class InitializationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'provenance'):
             validate_initialization_payload(value, target, '0' * 64, 101)
 
+    def test_selected_epoch_zero_transfers_only_with_matching_baseline_provenance(self):
+        value, target = payload()
+        value['best_epoch'] = 0
+        value['initialization'] = {'baseline_eligible_for_selection': True,
+                                  'validation_before_finetuning': {'selection_score': value['validation_selection_score']}}
+        state, provenance = validate_initialization_payload(value, target, '0' * 64, 101)
+        self.assertEqual(state, value['model_state_dict'])
+        self.assertEqual(provenance['source_best_epoch'], 0)
+        self.assertEqual(provenance['source_selection_origin'], 'initialization')
+        value['initialization']['validation_before_finetuning']['selection_score'] += 1
+        with self.assertRaisesRegex(ValueError, 'epoch zero'):
+            validate_initialization_payload(value, target, '0' * 64, 101)
+
     def test_verified_load_uses_restricted_reader_and_never_restores_state(self):
         value, target = payload()
         with tempfile.TemporaryDirectory() as temporary:
