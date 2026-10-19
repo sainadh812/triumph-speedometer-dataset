@@ -49,6 +49,26 @@ class AnnotationVisibilityTests(unittest.TestCase):
         self.assertFalse(mapped_visible[4:].any())
         self.assertFalse(any(known[4:]))
 
+    def test_glare_ambiguous_physical_lcd_corner_can_have_unknown_visibility(self):
+        self.row['lcd_corners'][3]=None
+        self.row['lcd_corner_visibility']=[True,True,True,False]
+        self.row['lcd_corner_visibility_known']=[True,True,True,False]
+        points,visible,known=annotation_targets(self.row,'localizer',(480,640))
+        self.assertEqual(visible[:4],[True,True,True,False])
+        self.assertEqual(known[:4],[True,True,True,False])
+        np.testing.assert_array_equal(points[3],[0,0])
+
+    def test_default_lcd_visibility_known_is_unchanged_and_explicit_field_is_validated(self):
+        _,visible,known=annotation_targets(self.row,'localizer',(480,640))
+        self.assertEqual(known[:4],[True]*4)
+        for bad in (None,[],[True]*3,[True]*5,[True,True,True,0]):
+            self.row['lcd_corner_visibility_known']=bad
+            with self.assertRaisesRegex(ValueError,'exactly four booleans'):
+                annotation_targets(self.row,'localizer',(480,640))
+        self.row['lcd_corner_visibility_known']=[True,True,True,False]
+        with self.assertRaisesRegex(ValueError,'Visible LCD corners'):
+            annotation_targets(self.row,'localizer',(480,640))
+
     def test_reviewed_out_of_frame_corner_is_known_negative(self):
         self.row.update(rpm_roi_corners=[[-10, 90], [300, 90], [300, 310], [-10, 310]],
                         rpm_roi_review={'reviewed': True, 'reason': 'Reviewed context extends outside frame'})

@@ -115,6 +115,11 @@ def annotation_targets(row,task,source_shape=None):
         corners=row.get('lcd_corners',[])
         corners=(corners+[None]*4)[:4]
         vis=row.get('lcd_corner_visibility',row.get('lcd_corner_visible',[p is not None for p in corners]))
+        lcd_known=row.get('lcd_corner_visibility_known',[True]*4)
+        if not isinstance(lcd_known,list) or len(lcd_known)!=4 or any(type(value) is not bool for value in lcd_known):
+            raise ValueError('lcd_corner_visibility_known must contain exactly four booleans')
+        if any(v and not k for v,k in zip(vis,lcd_known)):
+            raise ValueError('Visible LCD corners must have known visibility')
         points=[p if p is not None else [0,0] for p in corners]
         quad=row.get('lcd_rectification_corners') or row.get('lcd_corners')
         roi=np.zeros((4,2),np.float32);roi_vis=[False]*4;roi_known=[False]*4
@@ -131,7 +136,7 @@ def annotation_targets(row,task,source_shape=None):
             if source_shape is None: raise ValueError('Source shape required for RPM crop visibility')
             hh,ww=source_shape[:2]
             roi_vis=((roi[:,0]>=0)&(roi[:,0]<=ww-1)&(roi[:,1]>=0)&(roi[:,1]<=hh-1)).tolist()
-        return np.array(points+roi.tolist(),np.float32),list(vis)+roi_vis,[True]*4+roi_known
+        return np.array(points+roi.tolist(),np.float32),list(vis)+roi_vis,lcd_known+roi_known
     points=row[task+'_points']
     values=[points.get(n,{}) for n in POINT_NAMES[task]]
     visible=[bool(v.get('visible',False) and v.get('xy') is not None) for v in values]
