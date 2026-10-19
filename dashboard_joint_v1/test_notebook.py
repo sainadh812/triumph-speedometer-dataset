@@ -11,6 +11,23 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 class NotebookTests(unittest.TestCase):
+    def test_video_cpu_cell_keeps_explicit_device_and_config(self):
+        from build_video_cell import build as video_cell
+        config = {'device': 'cpu', 'batch_size': 4, 'cpu_threads': 2, 'last_seconds': 120}
+        cell = video_cell(REPO, 'd'*40, 'test-workspace', {'run_id': 'test-run'}, config,
+                          cell_id='joint_video_test_cpu')
+        self.assertEqual(cell['id'], 'joint_video_test_cpu')
+        source = ''.join(cell['source'])
+        compile(source, '<cpu-video-cell>', 'exec')
+        tree = ast.parse(source)
+        values = {node.targets[0].id: node.value for node in tree.body if isinstance(node, ast.Assign)
+                  and isinstance(node.targets[0], ast.Name)}
+        self.assertEqual(ast.literal_eval(values['INFERENCE_DEVICE']), 'cpu')
+        self.assertEqual(ast.literal_eval(values['VIDEO_CONFIG']), config)
+        self.assertIn('Select CPU hardware', source)
+        with self.assertRaises(ValueError):
+            video_cell(REPO, 'd'*40, 'test', {}, {'device': 'auto'})
+
     def test_finetune_config_survives_runtime_switch_and_all_resume_skips_initial_weights(self):
         reference={'run_id':'source_run','complete_id':'source_receipt'}
         configs={task:{'batch_size':16,'epochs':20,'min_epochs':5,'daylight_fraction':.7,

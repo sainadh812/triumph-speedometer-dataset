@@ -1,4 +1,4 @@
-"""Small shared-feature task models. Construction/execution is Colab CUDA only."""
+"""Task models: Colab CUDA training, with explicit Colab CPU inference only."""
 from __future__ import annotations
 
 import importlib.util
@@ -13,16 +13,37 @@ ARCHITECTURE_ID = 'dashboard_v1_mobilenetv3small_stride4_lcd4_rpmroi4_spatial_bb
 POINT_COUNTS = {'localizer': 8, 'speed': 12, 'rpm': 8}
 
 
-def require_colab_cuda():
+def require_colab_device(device='cuda', *, inference_only=False):
+    """Resolve an explicit Colab device; never fall back from CUDA to CPU."""
+    if device not in ('cuda', 'cpu'):
+        raise ValueError("device must be 'cuda' or 'cpu'")
     try:
         in_colab = importlib.util.find_spec('google.colab') is not None
     except (ImportError, ModuleNotFoundError, ValueError):
         in_colab = False
     if not (in_colab or os.environ.get('COLAB_RELEASE_TAG')):
         raise RuntimeError('Neural model construction/training/inference is restricted to Google Colab')
+    if device == 'cpu':
+        if not inference_only:
+            raise RuntimeError('CPU is permitted only for explicit Colab inference; training requires CUDA')
+        return torch.device('cpu')
     if not torch.cuda.is_available():
         raise RuntimeError('A Colab CUDA runtime is required; no CPU/local model fallback')
     return torch.device('cuda')
+
+
+def require_colab_cuda():
+    """Unchanged training policy: a Colab CUDA runtime is required."""
+    return require_colab_device('cuda')
+
+
+def _validate_execution(images, input_hw, device, inference_only, training):
+    if images.device.type != device or images.ndim != 4 or tuple(images.shape[1:]) != (3, *input_hw):
+        raise ValueError(f'Expected normalized Colab {device.upper()} N,3,H,W inputs at declared shape')
+    if device == 'cpu' and not inference_only:
+        raise RuntimeError('CPU training is not permitted')
+    if inference_only and (training or torch.is_grad_enabled() or not torch.is_inference_mode_enabled()):
+        raise RuntimeError('Inference-only models require eval() and torch.inference_mode()')
 
 
 def block(inputs, outputs):
@@ -31,12 +52,14 @@ def block(inputs, outputs):
 
 
 class InstrumentModel(nn.Module):
-    def __init__(self, task, input_hw, pretrained=True):
-        require_colab_cuda()
+    def __init__(self, task, input_hw, pretrained=True, *, device='cuda', inference_only=False):
+        require_colab_device(device, inference_only=inference_only)
         super().__init__()
         if task not in POINT_COUNTS:
             raise ValueError('Unknown task')
         self.task, self.input_hw = task, tuple(input_hw)
+        # Plain policy attributes add no parameters/buffers or checkpoint keys.
+        self._execution_device, self._inference_only = device, bool(inference_only)
         weights = MobileNet_V3_Small_Weights.IMAGENET1K_V1 if pretrained else None
         self.features = mobilenet_v3_small(weights=weights).features
         self.top = block(576, 96)
@@ -51,8 +74,7 @@ class InstrumentModel(nn.Module):
             self.presence_head = nn.Linear(576, 1)
 
     def forward(self, images):
-        if not images.is_cuda or images.ndim != 4 or tuple(images.shape[1:]) != (3, *self.input_hw):
-            raise ValueError('Expected normalized Colab CUDA N,3,H,W inputs at declared shape')
+        _validate_execution(images, self.input_hw, self._execution_device, self._inference_only, self.training)
         value, skips = images, {}
         for index, layer in enumerate(self.features):
             value = layer(value)

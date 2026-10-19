@@ -1,4 +1,6 @@
-"""New dashboard/LCD + speed + RPM pipeline; neural execution is Colab CUDA only.
+"""New dashboard/LCD + speed + RPM pipeline; neural execution is Colab only.
+
+CUDA is the default. CPU inference requires an explicit device='cpu' choice.
 
 The numerical helpers are CPU-safe and contain no model execution. All output
 coordinates refer to original video pixels. No image matching, old model heads,
@@ -7,6 +9,7 @@ fixed camera crops, previous readings, or source-video-specific offsets are used
 from __future__ import annotations
 
 import importlib.util
+from contextlib import nullcontext
 import math
 import os
 from pathlib import Path
@@ -243,7 +246,7 @@ def _colab_guard():
     except (ImportError, ModuleNotFoundError, ValueError):
         available = False
     if not (available or os.environ.get('COLAB_RELEASE_TAG')):
-        raise RuntimeError('Neural inference is restricted to Google Colab CUDA; no local execution')
+        raise RuntimeError('Neural inference is restricted to Google Colab; no local execution')
 
 
 class DashboardPredictor:
@@ -252,14 +255,14 @@ class DashboardPredictor:
     Large batches are split after CUDA OOM, never sent to a CPU model fallback.
     Checkpoint identity must agree across tasks and with this architecture.
     """
-    def __init__(self, checkpoints, batch_size=32, thresholds=None):
+    def __init__(self, checkpoints, batch_size=32, thresholds=None, device='cuda'):
         _colab_guard()  # Before importing torch or inspecting any weight file.
         import torch
         try:
-            from .model import InstrumentModel, require_colab_cuda, ARCHITECTURE_ID
+            from .model import InstrumentModel, require_colab_device, ARCHITECTURE_ID
         except ImportError:
-            from model import InstrumentModel, require_colab_cuda, ARCHITECTURE_ID
-        self.torch, self.device = torch, require_colab_cuda()
+            from model import InstrumentModel, require_colab_device, ARCHITECTURE_ID
+        self.torch, self.device = torch, require_colab_device(device, inference_only=True)
         self.batch_size = int(batch_size)
         if self.batch_size < 1:
             raise ValueError('batch_size must be positive')
@@ -278,7 +281,9 @@ class DashboardPredictor:
                     or identity.get('point_names') != POINT_NAMES[task] or identity.get('input_hw') != expected_hw):
                 raise ValueError('New-model checkpoint identity mismatch: '+task)
             identities.add(identity['dataset_manifest_sha256'])
-            model = InstrumentModel(task, expected_hw, pretrained=False).to(self.device)
+            model = InstrumentModel(task, expected_hw, pretrained=False, device=device, inference_only=True).to(self.device)
+            if self.device.type == 'cpu':
+                model.float()
             model.load_state_dict(payload['model_state_dict'], strict=True)
             model.eval()
             self.models[task] = model
@@ -290,7 +295,21 @@ class DashboardPredictor:
         self.effective_batch_size = {task: self.batch_size for task in self.models}
         self._mean = torch.tensor([.485, .456, .406], device=self.device).reshape(1, 3, 1, 1)
         self._std = torch.tensor([.229, .224, .225], device=self.device).reshape(1, 3, 1, 1)
-        torch.set_num_threads(min(torch.get_num_threads(), 2))
+        if self.device.type == 'cuda':
+            torch.set_num_threads(min(torch.get_num_threads(), 2))
+        self.execution_metadata = {'device': self.device.type,
+                                   'precision': 'float32' if self.device.type == 'cpu' else 'autocast_float16',
+                                   'torch_num_threads': int(torch.get_num_threads()),
+                                   'location': 'Google Colab', 'inference_only': True}
+
+    def _autocast_context(self):
+        if self.device.type == 'cuda':
+            return self.torch.autocast(device_type='cuda', dtype=self.torch.float16)
+        return nullcontext()
+
+    def _synchronize(self):
+        if self.device.type == 'cuda':
+            self.torch.cuda.synchronize()
 
     def _run(self, task, images):
         if not images:
@@ -301,14 +320,14 @@ class DashboardPredictor:
             size = min(self.effective_batch_size[task], len(images)-cursor)
             tensor = output = logits = indices = x = y = None
             try:
-                # Upload one uint8 gray channel, then do identical training
-                # normalization on CUDA. Avoid 12x larger CPU float uploads.
+                # Transfer one uint8 gray channel, then perform the identical
+                # training normalization on the explicitly selected device.
                 array = np.stack(images[cursor:cursor+size])
                 tensor = torch.from_numpy(array).to(self.device).float().div_(255.)[:, None]
                 tensor = (tensor.expand(-1, 3, -1, -1)-self._mean)/self._std
-                with torch.inference_mode(), torch.autocast(device_type='cuda', dtype=torch.float16):
+                with torch.inference_mode(), self._autocast_context():
                     output = self.models[task](tensor)
-                # Argmax on CUDA avoids copying dense landmark heatmaps to CPU.
+                # Decode on the selected device; CUDA avoids dense CPU copies.
                 logits = output['heatmap_logits']
                 h, w = logits.shape[-2:]
                 indices = logits.flatten(2).argmax(-1)
@@ -330,7 +349,9 @@ class DashboardPredictor:
                     results.append(row)
                 cursor += size
                 del tensor, output, logits, indices, x, y
-            except torch.cuda.OutOfMemoryError:
+            except Exception as error:
+                if self.device.type != 'cuda' or not isinstance(error, torch.cuda.OutOfMemoryError):
+                    raise
                 del tensor, output, logits, indices, x, y
                 torch.cuda.empty_cache()
                 if size == 1:
@@ -422,12 +443,13 @@ class DashboardPredictor:
                            bar_end=points[7].tolist(),
                            point_visibility=dict(zip(POINT_NAMES['rpm'], pred['visibility'].tolist())))
             rows[index]['rpm'] = decoded
-        self.torch.cuda.synchronize()
+        self._synchronize()
         total = time.perf_counter()-started
         self.last_batch_timing = {'frames': len(frames), 'total_seconds': total,
                                  'localizer_prepare_predict_seconds': local_seconds,
                                  'speed_prepare_predict_seconds': speed_seconds,
                                  'rpm_prepare_predict_seconds': rpm_seconds,
                                  'effective_batch_sizes': dict(self.effective_batch_size),
+                                 'execution': dict(self.execution_metadata),
                                  'note': 'Stage timings include normalization/transfers; total includes all geometry and crop preparation. Excludes video decode/encode.'}
         return rows

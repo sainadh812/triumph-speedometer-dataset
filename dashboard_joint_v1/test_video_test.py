@@ -26,6 +26,7 @@ def module():
     package.__path__ = [str(HERE)]
     model = types.ModuleType(PACKAGE + '.model')
     model.require_colab_cuda = lambda: None
+    model.require_colab_device = lambda device='cuda', inference_only=False: None
     inference = types.ModuleType(PACKAGE + '.inference')
     inference.DashboardPredictor = lambda *args, **kwargs: object()
     with patch.dict(sys.modules, {PACKAGE: package, PACKAGE + '.model': model,
@@ -191,6 +192,31 @@ class VideoTests(unittest.TestCase):
             with zipfile.ZipFile(io.BytesIO(archive_bytes)) as bundle:
                 self.assertIn('provenance.json', bundle.namelist())
                 self.assertIn('video_01/predictions.jsonl', bundle.namelist())
+
+    def test_cpu_provenance_device_and_threads_are_explicit(self):
+        events = []
+        execution = {'device': 'cpu', 'precision': 'float32', 'torch_num_threads': 2}
+        with tempfile.TemporaryDirectory() as temp, module() as runner:
+            store = FakeStore(events)
+            prepared, run_ref, config, _, _ = fixture(Path(temp), store)
+            config.update(device='cpu', cpu_threads=2, batch_size=4)
+            fake_torch = types.SimpleNamespace(set_num_threads=lambda n: events.append(('threads', n)))
+            inference = sys.modules[PACKAGE + '.inference']
+            with patch.dict(sys.modules, {'torch': fake_torch}), \
+                    patch.object(inference, 'DashboardPredictor', return_value=types.SimpleNamespace(execution_metadata=execution)) as ctor, \
+                    patch.object(runner, 'process_video', side_effect=fake_process), \
+                    patch.object(runner, '_disconnect', side_effect=lambda: events.append('disconnect')):
+                result = runner.run_video_tests(store, prepared, run_ref, config)
+            self.assertEqual(ctor.call_args.kwargs, {'batch_size': 4, 'device': 'cpu'})
+            self.assertIn(('threads', 2), events)
+            self.assertEqual(result['location'], 'Google Colab CPU')
+            self.assertEqual(result['execution'], execution)
+            self.assertEqual(result['videos'][0]['report']['execution'], execution)
+            self.assertEqual(events[-1], 'disconnect')
+            with zipfile.ZipFile(io.BytesIO(store.payloads[result['results_archive']['id']])) as bundle:
+                provenance = json.loads(bundle.read('provenance.json'))
+                self.assertEqual(provenance['execution'], execution)
+                self.assertEqual(provenance['location'], 'Google Colab CPU')
 
     def test_failed_results_upload_preserves_recovery_before_release(self):
         events = []

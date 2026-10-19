@@ -10,6 +10,7 @@ import csv
 import hashlib
 import json
 import math
+import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
@@ -413,7 +414,8 @@ def process_video(source, output_dir, predictor, batch_size=16, last_seconds=120
               'pipeline_work_scope': 'Conditional work: localizer runs every frame; speed requires a localized dashboard, RPM requires a valid RPM region. Pipeline FPS is not a benchmark with all three readers forced on every frame. Rejected numeric readings can still have executed their reader.',
               'batch_timings': batch_timings,
               'warmup_policy': 'No frames are discarded for warmup. First-batch startup costs are included. Models remain loaded across source videos.',
-              'timing_scope': 'Model pipeline includes preprocessing, CUDA prediction and geometry with CUDA synchronized before predict_frames returns. Model construction and Drive IO are excluded from per-video processing time and included in run wall time.',
+              'execution': getattr(predictor, 'execution_metadata', None),
+              'timing_scope': 'Model pipeline includes preprocessing, prediction and geometry; CUDA execution is synchronized before predict_frames returns, and CPU execution is synchronous. Model construction and Drive IO are excluded from per-video processing time and included in run wall time.',
               'full_frame_preserved': True, 'audio_included': False,
               'playback_note': 'CFR playback preserves every selected frame; original timestamps are in CSV/JSONL. Playback FPS is not inference throughput.',
               'metric_scope': 'Visual development inspection on source recordings; no ground-truth speed/RPM accuracy is claimed.'}
@@ -448,7 +450,8 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
     """Test saved models, export outputs, then release only after durable saving.
 
     config: videos=[{id, sha256, size, name, label?}], last_seconds=120,
-    batch_size=16, expected_identity={}, code_commit=<pinned inference revision>.
+    batch_size=16, device='cuda' (explicit 'cpu' allowed in Colab only),
+    cpu_threads=bounded host CPU count, expected_identity={}, code_commit=<pinned inference revision>.
     run_ref: training run ID or {run_id, complete_id} (preferred, exact receipt).
     """
     attempt = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S_%f') + '_' + uuid.uuid4().hex[:8]
@@ -457,8 +460,16 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
     started = time.perf_counter()
     saved_summary = None
     try:
-        from .model import require_colab_cuda
-        require_colab_cuda()
+        from .model import require_colab_device
+        device = config.get('device', 'cuda')
+        require_colab_device(device, inference_only=True)
+        if device == 'cpu':
+            import torch
+            threads = config.get('cpu_threads', min(4, os.cpu_count() or 1))
+            if type(threads) is not int or not 1 <= threads <= 32:
+                raise ValueError('cpu_threads must be an integer from 1 to 32')
+            torch.set_num_threads(threads)
+        location = 'Google Colab ' + device.upper()
         print('Video tests: validating completed training receipt and private source references.', flush=True)
         batch_size, seconds = int(config.get('batch_size', 16)), float(config.get('last_seconds', 120))
         if not 1 <= batch_size <= 256 or not math.isfinite(seconds) or not 0 < seconds <= 120:
@@ -483,8 +494,8 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
         output = workdir / attempt
         output.mkdir(parents=True, exist_ok=False)
         from .inference import DashboardPredictor
-        print('Video tests: loading the three verified models on Colab CUDA.', flush=True)
-        predictor = DashboardPredictor(paths, batch_size=batch_size)
+        print('Video tests: loading the three verified models on ' + location + '.', flush=True)
+        predictor = DashboardPredictor(paths, batch_size=batch_size, device=device)
         print('Video tests: models loaded; beginning frame processing.', flush=True)
         reports = []
         def save(path, name=None):
@@ -497,6 +508,7 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
             report = process_video(source, directory, predictor, batch_size, seconds, label)
             report['source_reference'] = {key: ref[key] for key in ('id', 'sha256', 'size', 'name')}
             report['training_complete_id'] = receipt['id']
+            report['execution'] = getattr(predictor, 'execution_metadata', None)
             write_json(directory / 'report.json', report)
             artifacts = {}
             for name in ('labeled.mp4', 'predictions.csv', 'predictions.jsonl', 'report.json'):
@@ -510,7 +522,8 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
                       'predictor_metadata': getattr(predictor, 'metadata', None),
                       'batch_size': batch_size, 'last_seconds': seconds,
                       'source_references': [{key: ref[key] for key in ('id', 'sha256', 'size', 'name')} for ref in videos],
-                      'no_old_cpu_matching': True, 'location': 'Google Colab CUDA'}
+                      'execution': getattr(predictor, 'execution_metadata', None),
+                      'no_old_cpu_matching': True, 'location': location}
         write_json(output / 'provenance.json', provenance)
         print('Video tests: saving provenance and packaging the combined results archive.', flush=True)
         save(output / 'provenance.json')
@@ -527,7 +540,8 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
                          'inference_code_commit': config.get('code_commit'), 'videos': reports,
                          'results_archive': saved_archive, 'drive_output_folder_id': folder['id'],
                          'total_wall_seconds_including_download_save': time.perf_counter() - started,
-                         'all_result_files_verified_in_drive': True, 'location': 'Google Colab CUDA'}
+                         'execution': getattr(predictor, 'execution_metadata', None),
+                         'all_result_files_verified_in_drive': True, 'location': location}
         write_json(output / 'COMPLETE.json', saved_summary)
         completion_ref = save(output / 'COMPLETE.json')
         saved_summary['completion_receipt'] = completion_ref
@@ -544,7 +558,7 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
         if output is not None and folder is not None:
             preserved = _preserve_failure(store, output, folder['id'], attempt, verified, failure)
         if auto_disconnect and preserved:
-            print('Required artifacts are preserved. Releasing the accelerator.', flush=True)
+            print('Required artifacts are preserved. Releasing the runtime.', flush=True)
             _disconnect()
         raise
     if download:
@@ -555,6 +569,6 @@ def run_video_tests(store, prepared, run_ref, config, auto_disconnect=True, down
         except Exception:
             print('Browser download could not start. Download the verified Drive results archive.', flush=True)
     if auto_disconnect:
-        print('All video outputs are verified in Drive. Releasing the accelerator.', flush=True)
+        print('All video outputs are verified in Drive. Releasing the runtime.', flush=True)
         _disconnect()
     return saved_summary

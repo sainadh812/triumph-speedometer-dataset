@@ -1,6 +1,8 @@
 # Dashboard, LCD, speed and RPM training
 
-This version provides one Colab workflow for three sequential training tasks. Dataset preparation is CPU-only; neural model smoke checks, training and inference are restricted to a Colab CUDA runtime. The source code does not include private frames, videos, model weights or OAuth credentials. Publication of code alone does not mean a dataset has been uploaded or training has run.
+This version provides one Colab workflow for three sequential training tasks. Dataset preparation is CPU-only; neural model training is restricted to a Colab CUDA runtime. Inference defaults to Colab CUDA and also supports explicitly selected Colab CPU inference. Local neural execution and automatic device fallback remain disabled. The source code does not include private frames, videos, model weights or OAuth credentials. Publication of code alone does not mean a dataset has been uploaded or training has run.
+
+For CPU video tests, set `device='cpu'`, a modest `batch_size` such as 4, and `cpu_threads=2` in the video configuration, then select CPU hardware in Colab. CPU inference uses float32 with unchanged preprocessing, model weights and reading thresholds. CUDA uses float16 autocast, so small numerical differences near decision boundaries are possible. Saved reports identify the device, precision, thread count and actual conditional reader coverage; CPU FPS must not be presented as GPU FPS. The video workflow verifies Drive outputs before releasing the runtime.
 
 ## Models and inputs
 

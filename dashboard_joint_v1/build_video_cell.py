@@ -8,7 +8,10 @@ FILES = ['preprocess.py', 'dataset.py', 'model.py', 'metrics.py', 'state.py',
          'sampling.py', 'initialization.py', 'train.py', 'colab_workflow.py', 'inference.py', 'video_test.py']
 
 
-def build(repository, commit, workspace_id, run_reference, video_config):
+def build(repository, commit, workspace_id, run_reference, video_config, *, cell_id='joint_video_test'):
+    device = video_config.get('device', 'cuda')
+    if device not in ('cuda', 'cpu'):
+        raise ValueError('Video device must be cuda or cpu; there is no automatic fallback')
     root = Path(repository)
     paths = ['dashboard_joint_v1/' + name for name in FILES]
     paths += ['learned_lcd_v1/drive_api_video_v1/drive_api_store.py']
@@ -18,8 +21,14 @@ def build(repository, commit, workspace_id, run_reference, video_config):
 import sys, hashlib, urllib.request, json
 from pathlib import Path
 import torch
-if not torch.cuda.is_available():
+'''
+    if device == 'cpu':
+        source = source.replace('#@title 3. Test', '#@title CPU test')
+    source += f'INFERENCE_DEVICE = {device!r}\n'
+    source += '''if INFERENCE_DEVICE == 'cuda' and not torch.cuda.is_available():
     raise RuntimeError('Select T4 GPU, then run this cell. Training cells do not need to run again.')
+if INFERENCE_DEVICE == 'cpu' and torch.cuda.is_available():
+    raise RuntimeError('This is a CPU test. Select CPU hardware before running to avoid holding an idle GPU.')
 '''
     source += f'VIDEO_COMMIT = {commit!r}\nVIDEO_CODE_SHA256 = {hashes!r}\n'
     source += '''code_root = Path('/content/triumph_joint_code')
@@ -66,5 +75,5 @@ video_results = run_video_tests(store,
     RUN_REFERENCE, VIDEO_CONFIG, auto_disconnect=True, download=False)
 # Download the saved labeled MP4s from Drive after the runtime releases.
 '''
-    return {'cell_type': 'code', 'id': 'joint_video_test', 'metadata': {'id': 'joint_video_test'},
+    return {'cell_type': 'code', 'id': cell_id, 'metadata': {'id': cell_id},
             'source': source.splitlines(keepends=True), 'outputs': [], 'execution_count': None}
